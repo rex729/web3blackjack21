@@ -1,5 +1,44 @@
-# Vue 3 + TypeScript + Vite
+# Web3 Blackjack Client (Vue 3 + Vite)
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+This is the frontend client for the Web3 Blackjack game, built with Vue 3, Pinia, and Tailwind CSS 4.
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+## Prerequisites
+- **Node.js**: Version 18.0 or higher
+- **npm**: Version 9.0 or higher
+
+## Getting Started
+
+1. **Navigate to the client directory**:
+   ```bash
+   cd client
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+3. **Run the development server**:
+   ```bash
+   npm run dev
+   ```
+   The local server will start at `http://localhost:3000`.
+
+## Features
+- **Vue 3 (Composition API)**: Modern, reactive UI components.
+- **Pinia**: Centralized state management for game logic (hands, scores, bets).
+- **Tailwind CSS 4**: Optimized utility-first styling with high performance.
+- **Vite**: Ultra-fast development server and build tool.
+
+## Build for Production
+To generate optimized static files for deployment (e.g., to Nginx):
+```bash
+npm run build
+```
+The output will be in the `/dist` folder.
+
+## Project Structure
+- `src/components/`: Reusable Vue components (Card, Board, Controls, Hand).
+- `src/store/`: Pinia store containing core game logic and state.
+- `src/style.css`: Global styles and Tailwind directives.
+- `public/`: Static assets like character avatars.
