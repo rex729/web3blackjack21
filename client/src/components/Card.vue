@@ -23,16 +23,16 @@ const getSuitIcon = (suit: Suit) => {
 
 <template>
   <div v-if="card.hidden" 
-    class="relative w-24 h-36 bg-blue-800 rounded-lg shadow-xl border-2 border-white/20 flex items-center justify-center pattern-grid transform transition-all duration-300"
-    :style="{ transitionDelay: `${(index || 0) * 100}ms` }"
+    class="relative w-24 h-36 bg-blue-800 rounded-lg shadow-xl border-2 border-white/20 flex items-center justify-center pattern-grid opacity-0 animate-card-deal"
+    :style="{ animationDelay: `${(index || 0) * 150}ms` }"
   >
     <div class="w-20 h-32 border-2 border-white/10 rounded-md bg-white/5" />
   </div>
 
   <div v-else 
-    class="relative w-24 h-36 bg-white rounded-lg shadow-xl border border-gray-200 flex flex-col justify-between p-2 select-none transform transition-all duration-500 animate-[card-flip_0.6s_ease-out]"
+    class="relative w-24 h-36 bg-white rounded-lg shadow-xl border border-gray-200 flex flex-col justify-between p-2 select-none opacity-0 animate-card-deal"
     :class="isRed ? 'text-red-600' : 'text-black'"
-    :style="{ transitionDelay: `${(index || 0) * 100}ms` }"
+    :style="{ animationDelay: `${(index || 0) * 150}ms` }"
   >
     <!-- Top Left -->
     <div class="flex flex-col items-center">
@@ -54,8 +54,4 @@ const getSuitIcon = (suit: Suit) => {
 </template>
 
 <style scoped>
-@keyframes card-flip {
-  0% { transform: translateY(-50px) rotateY(90deg); opacity: 0; }
-  100% { transform: translateY(0) rotateY(0); opacity: 1; }
-}
 </style>

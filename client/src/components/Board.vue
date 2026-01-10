@@ -23,9 +23,14 @@ const showDealerScore = () => {
             <span class="font-mono text-xs tracking-widest uppercase text-white/50">LIVE</span>
         </div>
 
-        <div class="flex items-center gap-2 bg-black/80 px-6 py-3 rounded-full text-yellow-500 font-black text-xl border border-yellow-500/50 shadow-lg">
-            <Wallet class="w-5 h-5" />
-            ${{ store.balance }}
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2 bg-black/80 px-6 py-3 rounded-full text-yellow-500 font-black text-xl border border-yellow-500/50 shadow-lg">
+              <Wallet class="w-5 h-5" />
+              ${{ store.balance }}
+          </div>
+          <div class="w-12 h-12 rounded-full border-2 border-yellow-500/50 overflow-hidden shadow-lg shadow-yellow-500/20 bg-black">
+              <img src="/characters/character_01.png" alt="Avatar" class="w-full h-full object-cover" />
+          </div>
         </div>
     </div>
 
@@ -37,7 +42,7 @@ const showDealerScore = () => {
             <HandComp 
               :cards="store.dealerHand" 
               label="DEALER" 
-              :score="showDealerScore() ? calculateScore(store.dealerHand) : undefined" 
+              :score="showDealerScore() ? store.dealerScore : undefined" 
             />
             <div class="text-white/30 font-black uppercase tracking-[0.2em] text-sm mt-2">
               Dealer Must Draw to 16, Stand on 17
@@ -56,7 +61,7 @@ const showDealerScore = () => {
             <HandComp 
               :cards="store.playerHand" 
               label="PLAYER" 
-              :score="store.playerHand.length > 0 ? calculateScore(store.playerHand) : undefined" 
+              :score="store.playerHand.length > 0 ? store.playerScore : undefined" 
             />
 
             <!-- Controls -->

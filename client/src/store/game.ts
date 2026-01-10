@@ -57,6 +57,8 @@ export const useGameStore = defineStore('game', {
         deck: [] as Card[],
         playerHand: [] as Card[],
         dealerHand: [] as Card[],
+        playerScore: 0,
+        dealerScore: 0,
         status: 'idle' as GameStatus,
         balance: 1000,
         currentBet: 0,
@@ -64,18 +66,43 @@ export const useGameStore = defineStore('game', {
     }),
 
     actions: {
-        startGame() {
+        async startGame() {
             if (this.currentBet === 0 || this.currentBet > this.balance) return;
-
-            this.deck = createDeck();
-            this.playerHand = [this.deck.pop()!, this.deck.pop()!];
-            this.dealerHand = [this.deck.pop()!, { ...this.deck.pop()!, hidden: true }];
 
             this.status = 'playing';
             this.balance -= this.currentBet;
+            this.message = 'Dealing...';
+
+            this.deck = createDeck();
+            this.playerHand = [];
+            this.dealerHand = [];
+            this.playerScore = 0;
+            this.dealerScore = 0;
+
+            const p1 = this.deck.pop()!;
+            const d1 = this.deck.pop()!;
+            const p2 = this.deck.pop()!;
+            const d2 = { ...this.deck.pop()!, hidden: true };
+
+            // Sequential push with delays for animation and score update
+            this.playerHand.push(p1);
+            await new Promise(r => setTimeout(r, 600));
+            this.playerScore = calculateScore(this.playerHand);
+
+            this.dealerHand.push(d1);
+            await new Promise(r => setTimeout(r, 600));
+            this.dealerScore = calculateScore(this.dealerHand);
+
+            this.playerHand.push(p2);
+            await new Promise(r => setTimeout(r, 600));
+            this.playerScore = calculateScore(this.playerHand);
+
+            this.dealerHand.push(d2);
+            await new Promise(r => setTimeout(r, 600));
+
             this.message = 'Hit or Stand?';
 
-            if (calculateScore(this.playerHand) === 21) {
+            if (this.playerScore === 21) {
                 this.stand();
             }
         },
@@ -84,44 +111,56 @@ export const useGameStore = defineStore('game', {
             this.currentBet = amount;
         },
 
-        hit() {
+        async hit() {
             if (this.status !== 'playing') return;
 
             const newCard = this.deck.pop()!;
             this.playerHand.push(newCard);
 
-            if (calculateScore(this.playerHand) > 21) {
+            // Wait for dealing animation
+            await new Promise(r => setTimeout(r, 600));
+
+            this.playerScore = calculateScore(this.playerHand);
+
+            if (this.playerScore > 21) {
                 this.status = 'lost';
                 this.message = 'Bust!';
             }
         },
 
-        stand() {
+        async stand() {
             this.status = 'dealerTurn';
+            this.message = "Dealer's turn...";
 
             // Reveal Hole Card
             this.dealerHand = this.dealerHand.map(c => ({ ...c, hidden: false }));
+            await new Promise(r => setTimeout(r, 600));
+            this.dealerScore = calculateScore(this.dealerHand);
 
             // Dealer AI
-            while (calculateScore(this.dealerHand) < 17) {
-                this.dealerHand.push(this.deck.pop()!);
+            while (this.dealerScore < 17) {
+                const newCard = this.deck.pop()!;
+                this.dealerHand.push(newCard);
+                await new Promise(r => setTimeout(r, 800));
+                this.dealerScore = calculateScore(this.dealerHand);
             }
 
-            const playerScore = calculateScore(this.playerHand);
-            const dealerScore = calculateScore(this.dealerHand);
+            const finalPlayerScore = this.playerScore;
+            const finalDealerScore = this.dealerScore;
 
             let payout = 0;
 
-            if (dealerScore > 21) {
+            if (finalDealerScore > 21) {
                 this.status = 'won';
                 payout = this.currentBet * 2;
                 this.message = 'Dealer Bust! You Win!';
-            } else if (playerScore > dealerScore) {
+            } else if (finalPlayerScore > finalDealerScore) {
                 this.status = 'won';
                 payout = this.currentBet * 2;
                 this.message = 'You Win!';
-            } else if (playerScore < dealerScore) {
+            } else if (finalPlayerScore < finalDealerScore) {
                 this.status = 'lost';
+                payout = 0;
                 this.message = 'Dealer Wins.';
             } else {
                 this.status = 'push';
@@ -130,7 +169,7 @@ export const useGameStore = defineStore('game', {
             }
 
             // Blackjack special payout
-            if (this.playerHand.length === 2 && playerScore === 21 && dealerScore !== 21) {
+            if (this.playerHand.length === 2 && finalPlayerScore === 21 && finalDealerScore !== 21) {
                 this.status = 'blackjack';
                 payout = this.currentBet * 2.5;
                 this.message = 'BLACKJACK!';
@@ -143,6 +182,8 @@ export const useGameStore = defineStore('game', {
             this.status = 'betting';
             this.playerHand = [];
             this.dealerHand = [];
+            this.playerScore = 0;
+            this.dealerScore = 0;
             this.message = 'Place your bet.';
         }
     }
