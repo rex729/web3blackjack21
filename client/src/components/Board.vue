@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useGameStore, calculateScore } from '@/store/game';
+import { useGameStore } from '@/store/game';
 import HandComp from './Hand.vue';
 import ControlsComp from './Controls.vue';
 import { Wallet } from 'lucide-vue-next';

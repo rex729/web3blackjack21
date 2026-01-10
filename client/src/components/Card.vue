@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { clsx } from 'clsx';
 import { Spade, Heart, Diamond, Club } from 'lucide-vue-next';
 import type { Card, Suit } from '@/store/game';
 
