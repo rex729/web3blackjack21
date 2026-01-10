@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { useAuthStore } from './auth';
 
 export type Suit = 'spades' | 'hearts' | 'diamonds' | 'clubs';
 export type CardValue = '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A';
@@ -16,16 +17,16 @@ const SUITS: Suit[] = ['spades', 'hearts', 'diamonds', 'clubs'];
 
 const createDeck = (): Card[] => {
     const deck: Card[] = [];
-    for (const suit of SUITS) {
-        for (const value of VALUES) {
+    SUITS.forEach(suit => {
+        VALUES.forEach(value => {
             deck.push({ suit, value });
-        }
-    }
+        });
+    });
     return shuffle(deck);
 };
 
 const shuffle = (deck: Card[]) => {
-    return deck.sort(() => Math.random() - 0.5);
+    return [...deck].sort(() => Math.random() - 0.5);
 };
 
 export const calculateScore = (hand: Card[]) => {
@@ -60,17 +61,32 @@ export const useGameStore = defineStore('game', {
         playerScore: 0,
         dealerScore: 0,
         status: 'idle' as GameStatus,
-        balance: 1000,
         currentBet: 0,
-        message: '',
+        message: 'Place your bet.',
     }),
+
+    getters: {
+        balance: () => {
+            const authStore = useAuthStore();
+            return authStore.user?.balance ?? 0;
+        }
+    },
 
     actions: {
         async startGame() {
-            if (this.currentBet === 0 || this.currentBet > this.balance) return;
+            const authStore = useAuthStore();
+            if (!authStore.user) return;
+
+            if (this.currentBet === 0 || this.currentBet > authStore.user.balance) {
+                this.message = 'Insufficient balance or no bet!';
+                return;
+            }
 
             this.status = 'playing';
-            this.balance -= this.currentBet;
+
+            // Deduct from server
+            await authStore.updateRemoteBalance(-this.currentBet);
+
             this.message = 'Dealing...';
 
             this.deck = createDeck();
@@ -82,9 +98,8 @@ export const useGameStore = defineStore('game', {
             const p1 = this.deck.pop()!;
             const d1 = this.deck.pop()!;
             const p2 = this.deck.pop()!;
-            const d2 = { ...this.deck.pop()!, hidden: true };
+            const d2 = { ...this.deck.pop()!, hidden: true } as Card;
 
-            // Sequential push with delays for animation and score update
             this.playerHand.push(p1);
             await new Promise(r => setTimeout(r, 600));
             this.playerScore = calculateScore(this.playerHand);
@@ -109,6 +124,7 @@ export const useGameStore = defineStore('game', {
 
         placeBet(amount: number) {
             this.currentBet = amount;
+            this.status = 'betting';
         },
 
         async hit() {
@@ -117,9 +133,7 @@ export const useGameStore = defineStore('game', {
             const newCard = this.deck.pop()!;
             this.playerHand.push(newCard);
 
-            // Wait for dealing animation
             await new Promise(r => setTimeout(r, 600));
-
             this.playerScore = calculateScore(this.playerHand);
 
             if (this.playerScore > 21) {
@@ -129,15 +143,16 @@ export const useGameStore = defineStore('game', {
         },
 
         async stand() {
+            const authStore = useAuthStore();
+            if (!authStore.user) return;
+
             this.status = 'dealerTurn';
             this.message = "Dealer's turn...";
 
-            // Reveal Hole Card
             this.dealerHand = this.dealerHand.map(c => ({ ...c, hidden: false }));
             await new Promise(r => setTimeout(r, 600));
             this.dealerScore = calculateScore(this.dealerHand);
 
-            // Dealer AI
             while (this.dealerScore < 17) {
                 const newCard = this.deck.pop()!;
                 this.dealerHand.push(newCard);
@@ -168,14 +183,13 @@ export const useGameStore = defineStore('game', {
                 this.message = 'Push.';
             }
 
-            // Blackjack special payout
             if (this.playerHand.length === 2 && finalPlayerScore === 21 && finalDealerScore !== 21) {
                 this.status = 'blackjack';
                 payout = this.currentBet * 2.5;
                 this.message = 'BLACKJACK!';
             }
 
-            this.balance += payout;
+            await authStore.updateRemoteBalance(payout);
         },
 
         resetGame() {
@@ -184,6 +198,7 @@ export const useGameStore = defineStore('game', {
             this.dealerHand = [];
             this.playerScore = 0;
             this.dealerScore = 0;
+            this.currentBet = 0;
             this.message = 'Place your bet.';
         }
     }

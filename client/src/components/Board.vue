@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { useGameStore } from '@/store/game';
+import { useAuthStore } from '@/store/auth';
 import HandComp from './Hand.vue';
 import ControlsComp from './Controls.vue';
 import { Wallet } from 'lucide-vue-next';
 
 const store = useGameStore();
+const authStore = useAuthStore();
 
 const showDealerScore = () => {
   return store.status !== 'betting' && store.status !== 'idle' && store.status !== 'playing';
@@ -24,12 +26,19 @@ const showDealerScore = () => {
         </div>
 
         <div class="flex items-center gap-4">
-          <div class="flex items-center gap-2 bg-black/80 px-6 py-3 rounded-full text-yellow-500 font-black text-xl border border-yellow-500/50 shadow-lg">
-              <Wallet class="w-5 h-5" />
-              ${{ store.balance }}
+          <div class="flex flex-col items-end">
+              <span class="text-white/50 text-[10px] font-bold uppercase tracking-widest leading-none mb-1">Authenticated</span>
+              <div class="flex items-center gap-2 bg-black/80 px-6 py-3 rounded-full text-yellow-500 font-black text-xl border border-yellow-500/50 shadow-lg">
+                  <Wallet class="w-5 h-5" />
+                  ${{ authStore.user?.balance ?? 0 }}
+              </div>
           </div>
-          <div class="w-12 h-12 rounded-full border-2 border-yellow-500/50 overflow-hidden shadow-lg shadow-yellow-500/20 bg-black">
-              <img src="/characters/character_01.png" alt="Avatar" class="w-full h-full object-cover" />
+          <div 
+            @click="authStore.logout()"
+            class="w-12 h-12 rounded-full border-2 border-yellow-500/50 overflow-hidden shadow-lg shadow-yellow-500/20 bg-black cursor-pointer hover:border-red-500 transition-colors"
+            title="Click to Logout"
+          >
+              <img :src="authStore.user?.image" alt="Avatar" class="w-full h-full object-cover" />
           </div>
         </div>
     </div>
