@@ -1,0 +1,68 @@
+<script setup lang="ts">
+import { useGameStore, calculateScore } from '@/store/game';
+import HandComp from './Hand.vue';
+import ControlsComp from './Controls.vue';
+import { Wallet } from 'lucide-vue-next';
+
+const store = useGameStore();
+
+const showDealerScore = () => {
+  return store.status !== 'betting' && store.status !== 'idle' && store.status !== 'playing';
+};
+</script>
+
+<template>
+  <div class="relative w-full h-screen bg-emerald-900 overflow-hidden flex flex-col font-sans">
+    <!-- Green Felt Texture Overlay -->
+    <div class="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/felt.png')] pointer-events-none" />
+
+    <!-- HUD -->
+    <div class="relative z-10 flex justify-between p-6 w-full">
+        <div class="flex items-center gap-2 bg-black/40 px-4 py-2 rounded-full text-white backdrop-blur-md border border-white/10">
+            <div class="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+            <span class="font-mono text-xs tracking-widest uppercase text-white/50">LIVE</span>
+        </div>
+
+        <div class="flex items-center gap-2 bg-black/80 px-6 py-3 rounded-full text-yellow-500 font-black text-xl border border-yellow-500/50 shadow-lg">
+            <Wallet class="w-5 h-5" />
+            ${{ store.balance }}
+        </div>
+    </div>
+
+    <!-- Game Area -->
+    <div class="relative z-10 flex-1 flex flex-col items-center justify-between py-12 pb-24 max-w-5xl mx-auto w-full">
+
+        <!-- Dealer Area -->
+        <div class="flex flex-col items-center gap-4">
+            <HandComp 
+              :cards="store.dealerHand" 
+              label="DEALER" 
+              :score="showDealerScore() ? calculateScore(store.dealerHand) : undefined" 
+            />
+            <div class="text-white/30 font-black uppercase tracking-[0.2em] text-sm mt-2">
+              Dealer Must Draw to 16, Stand on 17
+            </div>
+        </div>
+
+        <!-- Center Info / Logo -->
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
+            <div class="text-9xl font-black tracking-tighter text-black rotate-[-10deg] select-none text-center">
+                CRYPTO<br />21
+            </div>
+        </div>
+
+        <!-- Player Area -->
+        <div class="flex flex-col items-center gap-8 w-full">
+            <HandComp 
+              :cards="store.playerHand" 
+              label="PLAYER" 
+              :score="store.playerHand.length > 0 ? calculateScore(store.playerHand) : undefined" 
+            />
+
+            <!-- Controls -->
+            <ControlsComp />
+        </div>
+
+    </div>
+  </div>
+</template>
