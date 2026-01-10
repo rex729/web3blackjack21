@@ -19,23 +19,22 @@ const showDealerScore = () => {
     <div class="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/felt.png')] pointer-events-none" />
 
     <!-- HUD -->
-    <div class="relative z-10 flex justify-between p-6 w-full">
-        <div class="flex items-center gap-2 bg-black/40 px-4 py-2 rounded-full text-white backdrop-blur-md border border-white/10">
+    <div class="relative z-10 flex justify-between items-center p-6 w-full">
+        <!-- Left Side: Live Indicator -->
+        <div class="flex items-center gap-2 bg-black/40 px-6 py-3 rounded-full text-white backdrop-blur-md border border-white/10 h-[52px]">
             <div class="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-            <span class="font-mono text-xs tracking-widest uppercase text-white/50">LIVE</span>
+            <span class="font-mono text-xs tracking-widest uppercase text-white/50 italic font-bold">LIVE</span>
         </div>
 
+        <!-- Right Side: Balance & Avatar -->
         <div class="flex items-center gap-4">
-          <div class="flex flex-col items-end">
-              <span class="text-white/50 text-[10px] font-bold uppercase tracking-widest leading-none mb-1">Authenticated</span>
-              <div class="flex items-center gap-2 bg-black/80 px-6 py-3 rounded-full text-yellow-500 font-black text-xl border border-yellow-500/50 shadow-lg">
-                  <Wallet class="w-5 h-5" />
-                  ${{ authStore.user?.balance ?? 0 }}
-              </div>
+          <div class="flex items-center gap-2 bg-black/80 px-6 py-3 rounded-full text-yellow-500 font-black text-xl border border-yellow-500/50 shadow-lg h-[52px]">
+              <Wallet class="w-5 h-5" />
+              ${{ authStore.user?.balance ?? 0 }}
           </div>
           <div 
             @click="authStore.logout()"
-            class="w-12 h-12 rounded-full border-2 border-yellow-500/50 overflow-hidden shadow-lg shadow-yellow-500/20 bg-black cursor-pointer hover:border-red-500 transition-colors"
+            class="w-[46.8px] h-[46.8px] rounded-full border-2 border-yellow-500/50 overflow-hidden shadow-lg shadow-yellow-500/20 bg-black cursor-pointer hover:border-red-500 transition-colors"
             title="Click to Logout"
           >
               <img :src="authStore.user?.image" alt="Avatar" class="w-full h-full object-cover" />
