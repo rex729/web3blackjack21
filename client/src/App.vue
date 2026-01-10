@@ -5,14 +5,15 @@ import Board from './components/Board.vue';
 import { useAuthStore } from './store/auth';
 
 const authStore = useAuthStore();
-const email = ref('');
+const email = ref(localStorage.getItem('saved_email') || '');
 const isStarted = ref(false);
 
 const handleLogin = async () => {
   if (!email.value) return;
   const success = await authStore.login(email.value);
   if (success) {
-    isStarted.ref = true;
+    localStorage.setItem('saved_email', email.value);
+    isStarted.value = true;
   }
 };
 </script>
@@ -35,17 +36,19 @@ const handleLogin = async () => {
     </p>
 
     <!-- Login Area -->
-    <div class="w-full max-w-md bg-zinc-900/50 p-8 rounded-3xl border border-white/10 backdrop-blur-xl">
+    <form @submit.prevent="handleLogin" class="w-full max-w-md bg-zinc-900/50 p-8 rounded-3xl border border-white/10 backdrop-blur-xl">
         <input 
           v-model="email"
+          name="email"
+          id="email-login"
           type="email" 
+          autocomplete="email"
           placeholder="Enter your email"
           class="w-full bg-black/50 border border-white/20 rounded-2xl px-6 py-4 text-white placeholder:text-zinc-600 focus:outline-none focus:border-yellow-500 transition-colors mb-4"
-          @keyup.enter="handleLogin"
         />
         
         <button
-          @click="handleLogin"
+          type="submit"
           :disabled="authStore.loading"
           class="w-full py-4 bg-white text-black font-black text-xl uppercase tracking-widest rounded-2xl hover:bg-yellow-500 transition-all shadow-xl flex items-center justify-center gap-3 disabled:opacity-50"
         >
@@ -58,7 +61,7 @@ const handleLogin = async () => {
         <p v-if="authStore.error" class="text-red-500 text-center mt-4 text-sm font-bold uppercase tracking-tight">
             {{ authStore.error }}
         </p>
-    </div>
+    </form>
   </div>
 
   <Board v-else />
