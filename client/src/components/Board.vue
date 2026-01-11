@@ -1,12 +1,20 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import { useGameStore } from '@/store/game';
 import { useAuthStore } from '@/store/auth';
 import HandComp from './Hand.vue';
 import ControlsComp from './Controls.vue';
-import { Wallet } from 'lucide-vue-next';
+import { Wallet, RefreshCw } from 'lucide-vue-next';
 
 const store = useGameStore();
 const authStore = useAuthStore();
+const isRefreshing = ref(false);
+
+const handleRefresh = async () => {
+  isRefreshing.value = true;
+  await authStore.initialize();
+  setTimeout(() => { isRefreshing.value = false; }, 600);
+};
 
 const showDealerScore = () => {
   return store.status !== 'betting' && store.status !== 'idle' && store.status !== 'playing';
@@ -28,6 +36,17 @@ const showDealerScore = () => {
 
         <!-- Right Side: Balance & Avatar -->
         <div class="flex items-center gap-4">
+          <button 
+            @click="handleRefresh"
+            class="p-3 rounded-full bg-black/40 text-white/50 hover:text-white hover:bg-black/60 transition-all border border-white/10 flex items-center justify-center group h-[52px] w-[52px]"
+            title="Refresh Balance"
+          >
+            <RefreshCw 
+              class="w-5 h-5 transition-transform duration-700 ease-in-out" 
+              :class="{ 'rotate-[360deg]': isRefreshing }"
+            />
+          </button>
+
           <div class="flex items-center gap-2 bg-black/80 px-6 py-3 rounded-full text-yellow-500 font-black text-xl border border-yellow-500/50 shadow-lg h-[52px]">
               <Wallet class="w-5 h-5" />
               ${{ authStore.user?.balance ?? 0 }}
@@ -76,6 +95,12 @@ const showDealerScore = () => {
             <ControlsComp />
         </div>
 
+    </div>
+
+    <!-- Footer Info: Email in bottom right -->
+    <div class="absolute bottom-4 right-6 z-20 flex flex-col items-end opacity-40 hover:opacity-100 transition-opacity">
+        <span class="text-[10px] font-mono text-white/50 tracking-tighter uppercase mb-1">Authenticated Account</span>
+        <span class="text-xs font-bold text-white tracking-widest">{{ authStore.user?.email }}</span>
     </div>
   </div>
 </template>

@@ -4,7 +4,7 @@ import { clsx } from 'clsx';
 
 const store = useGameStore();
 
-const chips = [5, 25, 100, 500];
+const chips = [5, 25, 100, 500, 1000];
 </script>
 
 <template>
@@ -23,7 +23,8 @@ const chips = [5, 25, 100, 500];
           amt === 5 ? 'bg-red-600 border-red-400' :
           amt === 25 ? 'bg-green-600 border-green-400' :
           amt === 100 ? 'bg-black border-slate-600 text-white' :
-          'bg-purple-600 border-purple-400 text-white'
+          amt === 500 ? 'bg-purple-600 border-purple-400 text-white' :
+          'bg-blue-600 border-blue-400 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]'
         )"
       >
         {{ amt }}

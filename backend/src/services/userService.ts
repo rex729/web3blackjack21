@@ -1,7 +1,7 @@
 import prisma from '../db';
 
 export class UserService {
-    static async loginOrRegister(email: string, password?: string) {
+    static async loginOrRegister(email: string, password?: string, name?: string, image?: string) {
         let user = await prisma.user.findUnique({
             where: { email }
         });
@@ -15,8 +15,8 @@ export class UserService {
                 data: {
                     email,
                     password, // Plain text for MVP as requested previously
-                    name: email.split('@')[0],
-                    image: avatarPath,
+                    name: name || email.split('@')[0],
+                    image: image || avatarPath,
                     balance: 1000
                 }
             });

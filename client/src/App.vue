@@ -1,21 +1,40 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { Spade, Heart, Club, Diamond, LogIn } from 'lucide-vue-next';
 import Board from './components/Board.vue';
 import { useAuthStore } from './store/auth';
 
 const authStore = useAuthStore();
-const email = ref(localStorage.getItem('saved_email') || '');
-const isStarted = ref(false);
 
-const handleLogin = async () => {
-  if (!email.value) return;
-  const success = await authStore.login(email.value);
+// Replace with your actual Client ID from Google Cloud Console
+const GOOGLE_CLIENT_ID = "35708177818-vt66utfbrr6ivjtjch3nnk31aihfk1e0.apps.googleusercontent.com";
+
+const handleGoogleCallback = async (response: any) => {
+  const success = await authStore.loginWithGoogle(response.credential);
   if (success) {
-    localStorage.setItem('saved_email', email.value);
-    isStarted.value = true;
+    console.log("Google Login Success");
   }
 };
+
+onMounted(async () => {
+  // Restore session if token exists
+  await authStore.initialize();
+
+  // @ts-ignore
+  if (window.google) {
+    // @ts-ignore
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleCallback,
+    });
+
+    // @ts-ignore
+    window.google.accounts.id.renderButton(
+      document.getElementById("google-login-btn"),
+      { theme: "filled_black", size: "large", width: 400, shape: "pill" }
+    );
+  }
+});
 </script>
 
 <template>
@@ -36,32 +55,17 @@ const handleLogin = async () => {
     </p>
 
     <!-- Login Area -->
-    <form @submit.prevent="handleLogin" class="w-full max-w-md bg-zinc-900/50 p-8 rounded-3xl border border-white/10 backdrop-blur-xl">
-        <input 
-          v-model="email"
-          name="email"
-          id="email-login"
-          type="email" 
-          autocomplete="email"
-          placeholder="Enter your email"
-          class="w-full bg-black/50 border border-white/20 rounded-2xl px-6 py-4 text-white placeholder:text-zinc-600 focus:outline-none focus:border-yellow-500 transition-colors mb-4"
-        />
-        
-        <button
-          type="submit"
-          :disabled="authStore.loading"
-          class="w-full py-4 bg-white text-black font-black text-xl uppercase tracking-widest rounded-2xl hover:bg-yellow-500 transition-all shadow-xl flex items-center justify-center gap-3 disabled:opacity-50"
-        >
-          <span v-if="authStore.loading">Entering...</span>
-          <template v-else>
-            Login / Join <LogIn class="w-6 h-6" />
-          </template>
-        </button>
+    <div class="w-full max-w-md bg-zinc-900/50 p-10 rounded-3xl border border-white/10 backdrop-blur-xl flex flex-col items-center">
+        <div id="google-login-btn" class="w-full flex justify-center mb-4"></div>
         
         <p v-if="authStore.error" class="text-red-500 text-center mt-4 text-sm font-bold uppercase tracking-tight">
             {{ authStore.error }}
         </p>
-    </form>
+        
+        <p class="text-zinc-600 text-[10px] uppercase font-bold tracking-[0.2em] mt-6 text-center">
+          By signing in, you agree to our protocol terms
+        </p>
+    </div>
   </div>
 
   <Board v-else />

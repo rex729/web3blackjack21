@@ -101,16 +101,19 @@ export const useGameStore = defineStore('game', {
             const d2 = { ...this.deck.pop()!, hidden: true } as Card;
 
             this.playerHand.push(p1);
-            await new Promise(r => setTimeout(r, 600));
+            await new Promise(r => setTimeout(r, 450));
             this.playerScore = calculateScore(this.playerHand);
+            await new Promise(r => setTimeout(r, 150));
 
             this.dealerHand.push(d1);
-            await new Promise(r => setTimeout(r, 600));
+            await new Promise(r => setTimeout(r, 450));
             this.dealerScore = calculateScore(this.dealerHand);
+            await new Promise(r => setTimeout(r, 150));
 
             this.playerHand.push(p2);
-            await new Promise(r => setTimeout(r, 600));
+            await new Promise(r => setTimeout(r, 450));
             this.playerScore = calculateScore(this.playerHand);
+            await new Promise(r => setTimeout(r, 150));
 
             this.dealerHand.push(d2);
             await new Promise(r => setTimeout(r, 600));
@@ -133,8 +136,9 @@ export const useGameStore = defineStore('game', {
             const newCard = this.deck.pop()!;
             this.playerHand.push(newCard);
 
-            await new Promise(r => setTimeout(r, 600));
+            await new Promise(r => setTimeout(r, 450));
             this.playerScore = calculateScore(this.playerHand);
+            await new Promise(r => setTimeout(r, 150));
 
             if (this.playerScore > 21) {
                 this.status = 'lost';
@@ -156,8 +160,9 @@ export const useGameStore = defineStore('game', {
             while (this.dealerScore < 17) {
                 const newCard = this.deck.pop()!;
                 this.dealerHand.push(newCard);
-                await new Promise(r => setTimeout(r, 800));
+                await new Promise(r => setTimeout(r, 600));
                 this.dealerScore = calculateScore(this.dealerHand);
+                await new Promise(r => setTimeout(r, 200));
             }
 
             const finalPlayerScore = this.playerScore;
