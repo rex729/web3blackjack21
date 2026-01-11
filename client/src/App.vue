@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch, nextTick } from 'vue';
 import { Spade, Heart, Club, Diamond, LogIn } from 'lucide-vue-next';
 import Board from './components/Board.vue';
 import { useAuthStore } from './store/auth';
@@ -16,6 +16,27 @@ const handleGoogleCallback = async (response: any) => {
   }
 };
 
+const renderGoogleButton = () => {
+  // @ts-ignore
+  if (window.google && !authStore.user) {
+    nextTick(() => {
+      const btn = document.getElementById("google-login-btn");
+      if (btn) {
+        // @ts-ignore
+        window.google.accounts.id.renderButton(
+          btn,
+          { theme: "filled_black", size: "large", width: 400, shape: "pill" }
+        );
+      }
+    });
+  }
+};
+
+// Re-render button when logging out
+watch(() => authStore.user, (newVal) => {
+  if (!newVal) renderGoogleButton();
+});
+
 onMounted(async () => {
   // Restore session if token exists
   await authStore.initialize();
@@ -28,11 +49,7 @@ onMounted(async () => {
       callback: handleGoogleCallback,
     });
 
-    // @ts-ignore
-    window.google.accounts.id.renderButton(
-      document.getElementById("google-login-btn"),
-      { theme: "filled_black", size: "large", width: 400, shape: "pill" }
-    );
+    renderGoogleButton();
   }
 });
 </script>
