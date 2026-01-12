@@ -9,6 +9,8 @@ const authStore = useAuthStore();
 // Replace with your actual Client ID from Google Cloud Console
 const GOOGLE_CLIENT_ID = "35708177818-vt66utfbrr6ivjtjch3nnk31aihfk1e0.apps.googleusercontent.com";
 
+// Google 登入後的回調函式
+// 當 Google 認證成功，會回傳一個 credential (JWT)，我們將其送往後端進行驗證
 const handleGoogleCallback = async (response: any) => {
   const success = await authStore.loginWithGoogle(response.credential);
   if (success) {
@@ -49,6 +51,8 @@ onMounted(async () => {
       callback: handleGoogleCallback,
     });
 
+    // 初始化 Google 按鈕
+    // client_id 必須對應到 GCP 上的設定
     renderGoogleButton();
   }
 });

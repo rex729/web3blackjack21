@@ -36,6 +36,7 @@ app.post("/api/auth/login", async (req, res) => {
     try {
         const user = await UserService.loginOrRegister(email, password);
 
+        // 簽發 JWT Token，有效期 7 天
         const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
 
         res.json({
@@ -63,6 +64,7 @@ app.post("/api/auth/google", async (req, res) => {
     }
 
     try {
+        // 驗證 Google 傳來的 ID Token
         const ticket = await client.verifyIdToken({
             idToken: credential,
             audience: GOOGLE_CLIENT_ID,
@@ -77,9 +79,10 @@ app.post("/api/auth/google", async (req, res) => {
         const name = payload.name || email.split("@")[0];
         const image = payload.picture || "";
 
-        // Login or register with Google info
+        // 使用 Google 資訊進行登入或註冊
         const user = await UserService.loginOrRegister(email, undefined, name, image);
 
+        // 簽發 JWT
         const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
 
         res.json({
@@ -127,7 +130,8 @@ app.get("/api/auth/me", async (req, res) => {
     }
 });
 
-// Balance Update API
+// 餘額更新 API
+// 前端遊戲結束或下注時呼叫此 API 更新使用者餘額
 app.post("/api/user/balance", async (req, res) => {
     const { userId, amountChange } = req.body;
 
@@ -136,6 +140,7 @@ app.post("/api/user/balance", async (req, res) => {
     }
 
     try {
+        // 更新資料庫中的餘額
         const updatedUser = await UserService.updateBalance(userId, amountChange);
         res.json({ success: true, balance: updatedUser.balance });
     } catch (error) {

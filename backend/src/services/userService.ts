@@ -7,22 +7,23 @@ export class UserService {
         });
 
         if (!user) {
-            // Auto-registration
+            // 自動註冊流程
+            // 隨機分配一個頭像
             const randomAvatarId = Math.floor(Math.random() * 8) + 1;
             const avatarPath = `/characters/character_0${randomAvatarId}.png`;
 
             user = await prisma.user.create({
                 data: {
                     email,
-                    password, // Plain text for MVP as requested previously
+                    password, // 測試階段密碼僅明文儲存，正式上線應加密
                     name: name || email.split('@')[0],
                     image: image || avatarPath,
-                    balance: 1000
+                    balance: 1000 // 初始贈送餘額
                 }
             });
             console.log(`[UserService] New user registered: ${email}`);
         } else {
-            // Check password if exists (simpler check for now)
+            // 如果使用者已存在，簡單驗證密碼 (如果不是 Google 登入)
             if (password && user.password !== password) {
                 throw new Error("Invalid credentials");
             }

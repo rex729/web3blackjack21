@@ -22,6 +22,7 @@ const createDeck = (): Card[] => {
             deck.push({ suit, value });
         });
     });
+    // 洗牌後回傳
     return shuffle(deck);
 };
 
@@ -33,11 +34,12 @@ export const calculateScore = (hand: Card[]) => {
     let score = 0;
     let aces = 0;
 
+    // 計算基礎分數
     hand.forEach(card => {
-        if (card.hidden) return;
+        if (card.hidden) return; // 隱藏牌不算分
         if (card.value === 'A') {
             aces += 1;
-            score += 11;
+            score += 11; // Ace 預設算 11
         } else if (['K', 'Q', 'J'].includes(card.value)) {
             score += 10;
         } else {
@@ -45,6 +47,7 @@ export const calculateScore = (hand: Card[]) => {
         }
     });
 
+    // 如果爆牌 (超過 21) 且有 Ace，將 Ace 視為 1 分
     while (score > 21 && aces > 0) {
         score -= 10;
         aces -= 1;
@@ -84,7 +87,7 @@ export const useGameStore = defineStore('game', {
 
             this.status = 'playing';
 
-            // Deduct from server
+            // 先從後端扣除下注金額
             await authStore.updateRemoteBalance(-this.currentBet);
 
             this.message = 'Dealing...';
@@ -95,11 +98,13 @@ export const useGameStore = defineStore('game', {
             this.playerScore = 0;
             this.dealerScore = 0;
 
+            // 發牌順序：閒家 -> 莊家 -> 閒家 -> 莊家(暗牌)
             const p1 = this.deck.pop()!;
             const d1 = this.deck.pop()!;
             const p2 = this.deck.pop()!;
-            const d2 = { ...this.deck.pop()!, hidden: true } as Card;
+            const d2 = { ...this.deck.pop()!, hidden: true } as Card; // 莊家第二張牌是暗牌
 
+            // 模擬發牌動畫延遲
             this.playerHand.push(p1);
             await new Promise(r => setTimeout(r, 450));
             this.playerScore = calculateScore(this.playerHand);
@@ -153,10 +158,12 @@ export const useGameStore = defineStore('game', {
             this.status = 'dealerTurn';
             this.message = "Dealer's turn...";
 
+            // 莊家掀牌
             this.dealerHand = this.dealerHand.map(c => ({ ...c, hidden: false }));
             await new Promise(r => setTimeout(r, 600));
             this.dealerScore = calculateScore(this.dealerHand);
 
+            // 莊家必須補牌直到 17 點
             while (this.dealerScore < 17) {
                 const newCard = this.deck.pop()!;
                 this.dealerHand.push(newCard);
@@ -190,10 +197,11 @@ export const useGameStore = defineStore('game', {
 
             if (this.playerHand.length === 2 && finalPlayerScore === 21 && finalDealerScore !== 21) {
                 this.status = 'blackjack';
-                payout = this.currentBet * 2.5;
+                payout = this.currentBet * 2.5; // Blackjack 賠率 3:2 (也就是拿回本金 + 1.5倍)
                 this.message = 'BLACKJACK!';
             }
 
+            // 遊戲結束，與後端同步獎金
             await authStore.updateRemoteBalance(payout);
         },
 
