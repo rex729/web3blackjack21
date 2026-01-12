@@ -38,26 +38,39 @@ const renderGoogleButton = () => {
 
 // Re-render button when logging out
 watch(() => authStore.user, (newVal) => {
-  if (!newVal) renderGoogleButton();
+  if (!newVal) {
+    // 短暫延遲確保 DOM 已更新
+    setTimeout(() => renderGoogleButton(), 100);
+  }
 });
 
 onMounted(async () => {
-  // Restore session if token exists
+  // 1. 立即啟動 Google SDK 檢查 (不被後端請求阻塞)
+  const initGoogleBtn = () => {
+    // @ts-ignore
+    if (window.google) {
+      // @ts-ignore
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCallback,
+      });
+      renderGoogleButton();
+      return true;
+    }
+    return false;
+  };
+
+  if (!initGoogleBtn()) {
+    const checkGoogleInterval = setInterval(() => {
+      if (initGoogleBtn()) {
+        clearInterval(checkGoogleInterval);
+      }
+    }, 200);
+  }
+
+  // 2. 並行執行：恢復 Session 與 Socket 連線
   await authStore.initialize();
   gameStore.initializeSocket();
-
-  // @ts-ignore
-  if (window.google) {
-    // @ts-ignore
-    window.google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleGoogleCallback,
-    });
-
-    // 初始化 Google 按鈕
-    // client_id 必須對應到 GCP 上的設定
-    renderGoogleButton();
-  }
 });
 </script>
 
@@ -80,7 +93,7 @@ onMounted(async () => {
 
     <!-- Login Area -->
     <div class="w-full max-w-md bg-zinc-900/50 p-10 rounded-3xl border border-white/10 backdrop-blur-xl flex flex-col items-center">
-        <div id="google-login-btn" class="w-full flex justify-center mb-4"></div>
+        <div id="google-login-btn" class="w-full flex justify-center mb-4 min-h-[50px]"></div>
         
         <p v-if="authStore.error" class="text-red-500 text-center mt-4 text-sm font-bold uppercase tracking-tight">
             {{ authStore.error }}
