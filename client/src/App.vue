@@ -3,8 +3,10 @@ import { ref, onMounted, watch, nextTick } from 'vue';
 import { Spade, Heart, Club, Diamond, LogIn } from 'lucide-vue-next';
 import Board from './components/Board.vue';
 import { useAuthStore } from './store/auth';
+import { useGameStore } from './store/game';
 
 const authStore = useAuthStore();
+const gameStore = useGameStore();
 
 // Replace with your actual Client ID from Google Cloud Console
 const GOOGLE_CLIENT_ID = "35708177818-vt66utfbrr6ivjtjch3nnk31aihfk1e0.apps.googleusercontent.com";
@@ -42,6 +44,7 @@ watch(() => authStore.user, (newVal) => {
 onMounted(async () => {
   // Restore session if token exists
   await authStore.initialize();
+  gameStore.initializeSocket();
 
   // @ts-ignore
   if (window.google) {

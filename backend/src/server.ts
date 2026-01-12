@@ -122,11 +122,86 @@ app.post("/api/user/balance", async (req, res) => {
 });
 
 // Socket.io for future real-time features
+import { GameService } from "./services/gameService";
+
+// 暫時使用記憶體儲存遊戲狀態 (socketId -> GameService)
+const games: Record<string, GameService> = {};
+
 io.on("connection", (socket) => {
     console.log(`[Socket] Connected: ${socket.id}`);
 
+    // 為該使用者建立一個新的遊戲實例
+    games[socket.id] = new GameService();
+
+    // 發送初始狀態
+    socket.emit("gameState", games[socket.id].getState());
+
+    socket.on("startGame", async (data: { bet: number, userId: string }) => {
+        const game = games[socket.id];
+        if (!game) return;
+
+        // 1. 使用 UserService 驗證餘額
+        try {
+            const user = await UserService.getUser(data.userId);
+            if (!user || user.balance < data.bet) {
+                socket.emit("error", { message: "Insufficient balance" });
+                return;
+            }
+
+            // 2. 扣除餘額
+            await UserService.updateBalance(data.userId, -data.bet);
+
+            // 3. 開始遊戲邏輯
+            game.startGame(data.bet);
+
+            // 4. 發送更新 (餘額與遊戲狀態)
+            socket.emit("balanceUpdate", { balance: user.balance - data.bet });
+            io.to(socket.id).emit("gameState", game.getState());
+
+        } catch (e) {
+            console.error(e);
+            socket.emit("error", { message: "Failed to start game" });
+        }
+    });
+
+    socket.on("hit", () => {
+        const game = games[socket.id];
+        if (game) {
+            game.hit();
+            socket.emit("gameState", game.getState());
+        }
+    });
+
+    socket.on("stand", async (data: { userId: string }) => {
+        const game = games[socket.id];
+        if (!game) return;
+
+        const { payout } = game.dealerTurn();
+
+        // 如果贏了或平手，同步獎金
+        if (payout > 0) {
+            try {
+                const updatedUser = await UserService.updateBalance(data.userId, payout);
+                socket.emit("balanceUpdate", { balance: updatedUser.balance });
+            } catch (e) {
+                console.error("Payout failed", e);
+            }
+        }
+
+        socket.emit("gameState", game.getState());
+    });
+
+    socket.on("reset", () => {
+        const game = games[socket.id];
+        if (game) {
+            game.resetGame();
+            socket.emit("gameState", game.getState());
+        }
+    });
+
     socket.on("disconnect", () => {
         console.log(`[Socket] Disconnected: ${socket.id}`);
+        delete games[socket.id];
     });
 });
 
