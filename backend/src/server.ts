@@ -26,34 +26,7 @@ app.use(cors());
 app.use(express.json());
 
 // Auth API
-app.post("/api/auth/login", async (req, res) => {
-    const { email, password } = req.body;
 
-    if (!email) {
-        return res.status(400).json({ error: "Email is required" });
-    }
-
-    try {
-        const user = await UserService.loginOrRegister(email, password);
-
-        // 簽發 JWT Token，有效期 7 天
-        const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
-
-        res.json({
-            success: true,
-            token,
-            user: {
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                image: user.image,
-                balance: user.balance
-            }
-        });
-    } catch (error: any) {
-        res.status(401).json({ error: error.message || "Authentication failed" });
-    }
-});
 
 // Google Auth API
 app.post("/api/auth/google", async (req, res) => {

@@ -22,22 +22,7 @@ export const useAuthStore = defineStore('auth', {
     }),
 
     actions: {
-        async login(email: string, password?: string) {
-            this.loading = true;
-            this.error = null;
-            try {
-                const response = await axios.post(`${API_URL}/auth/login`, { email, password });
-                this.user = response.data.user;
-                this.token = response.data.token;
-                localStorage.setItem('auth_token', response.data.token);
-                return true;
-            } catch (err: any) {
-                this.error = err.response?.data?.error || 'Login failed';
-                return false;
-            } finally {
-                this.loading = false;
-            }
-        },
+
 
         async loginWithGoogle(credential: string) {
             this.loading = true;
