@@ -134,7 +134,12 @@ interface AuthenticatedSocket extends Server {
 
 // 改變儲存方式：使用 UserId 作為 Key，而不是 SocketId
 // 這樣即使斷線重連，只要 UserId 相同，就能找到原本的遊戲狀態
+// 改變儲存方式：使用 UserId 作為 Key，而不是 SocketId
+// 這樣即使斷線重連，只要 UserId 相同，就能找到原本的遊戲狀態
 const games: Record<string, GameService> = {};
+
+// 斷線自動結算倒數計時器 (UserId -> Timeout)
+const disconnectTimeouts: Record<string, NodeJS.Timeout> = {};
 
 // Socket.IO Middleware: 驗證 Token
 io.use((socket: any, next) => {
@@ -162,6 +167,17 @@ io.use((socket: any, next) => {
 io.on("connection", (socket: any) => {
     const user = socket.user;
     console.log(`[Socket] Connected: ${user.email} (${socket.id})`);
+
+    // 加入該使用者的專屬房間，方便判斷是否還有其他連線
+    socket.join(user.id);
+
+    // 1. 斷線重連檢查 (Reconnection Recovery)
+    // 如果有正在倒數的清除排程，表示使用者在限時內重新連上了，取消該排程
+    if (disconnectTimeouts[user.id]) {
+        console.log(`[Game] User ${user.email} reconnected! Canceling auto-stand timer.`);
+        clearTimeout(disconnectTimeouts[user.id]);
+        delete disconnectTimeouts[user.id];
+    }
 
     // 1. 斷線重連檢查 (Reconnection Recovery)
     // 檢查該使用者是否已經有進行中的遊戲
@@ -257,17 +273,44 @@ io.on("connection", (socket: any) => {
         }
     });
 
-    socket.on("disconnect", () => {
+    socket.on("disconnect", async () => {
         console.log(`[Socket] Disconnected: ${user.email}`);
-        // 關鍵：斷線時 **不要** 刪除遊戲狀態
-        // delete games[user.id]; 
 
-        // 可選：設定一個 Timer，例如 30 分鐘後才清除，避免記憶體無限膨脹
-        // setTimeout(() => {
-        //     if (games[user.id] && ... user still disconnected ...) {
-        //         delete games[user.id];
-        //     }
-        // }, 30 * 60 * 1000);
+        // 檢查該使用者是否還有其他活躍的連線 (例如開了多個分頁)
+        const sockets = await io.in(user.id).fetchSockets();
+        if (sockets.length > 0) {
+            console.log(`[Socket] User ${user.email} has active tabs, keeping game alive.`);
+            return;
+        }
+
+        // 若無其他連線，啟動 30 秒自動結算 (Auto-Stand) 機制
+        console.log(`[Socket] No active connections for ${user.email}. Starting 30s cleanup timer.`);
+
+        disconnectTimeouts[user.id] = setTimeout(async () => {
+            console.log(`[Game] Timeout reached for ${user.email}. Enhancing auto-stand logic.`);
+            const game = games[user.id];
+
+            if (game) {
+                // 如果遊戲還在進行中，視為 "Stand" 自動把牌局跑完並結算
+                if (game.status === 'playing') {
+                    const { payout } = game.dealerTurn();
+                    console.log(`[Game] Auto-stand result for ${user.email}: Payout ${payout}`);
+
+                    if (payout > 0) {
+                        try {
+                            await UserService.updateBalance(user.id, payout);
+                        } catch (e) {
+                            console.error("Auto-stand payout update failed", e);
+                        }
+                    }
+                }
+
+                // 移除遊戲狀態
+                delete games[user.id];
+            }
+
+            delete disconnectTimeouts[user.id];
+        }, 30000); // 30 秒
     });
 });
 
