@@ -122,41 +122,96 @@ app.post("/api/user/balance", async (req, res) => {
 });
 
 // Socket.io for future real-time features
+// Socket.io with Auth and Reconnection Support
 import { GameService } from "./services/gameService";
 
-// 暫時使用記憶體儲存遊戲狀態 (socketId -> GameService)
+interface AuthenticatedSocket extends Server {
+    user?: {
+        id: string;
+        email: string;
+    }
+}
+
+// 改變儲存方式：使用 UserId 作為 Key，而不是 SocketId
+// 這樣即使斷線重連，只要 UserId 相同，就能找到原本的遊戲狀態
 const games: Record<string, GameService> = {};
 
-io.on("connection", (socket) => {
-    console.log(`[Socket] Connected: ${socket.id}`);
+// Socket.IO Middleware: 驗證 Token
+io.use((socket: any, next) => {
+    const token = socket.handshake.auth.token;
 
-    // 為該使用者建立一個新的遊戲實例
-    games[socket.id] = new GameService();
+    if (!token) {
+        return next(new Error("Authentication error"));
+    }
 
-    // 發送初始狀態
-    socket.emit("gameState", games[socket.id].getState());
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+        // 簡單查找一下 User 確保存在 (可選)
+        UserService.getUser(decoded.userId).then(user => {
+            if (!user) return next(new Error("User not found"));
+            socket.user = { id: user.id, email: user.email };
+            next();
+        }).catch(err => {
+            next(new Error("Authentication failed"));
+        });
+    } catch (err) {
+        next(new Error("Invalid token"));
+    }
+});
 
-    socket.on("startGame", async (data: { bet: number, userId: string }) => {
-        const game = games[socket.id];
-        if (!game) return;
+io.on("connection", (socket: any) => {
+    const user = socket.user;
+    console.log(`[Socket] Connected: ${user.email} (${socket.id})`);
+
+    // 1. 斷線重連檢查 (Reconnection Recovery)
+    // 檢查該使用者是否已經有進行中的遊戲
+    let game = games[user.id];
+
+    if (game) {
+        console.log(`[Game] Resuming session for ${user.email}`);
+        // 如果有，立即發送目前的遊戲狀態
+        socket.emit("gameState", game.getState());
+
+        // 也可以順便發送餘額更新，確保一致
+        UserService.getUser(user.id).then(u => {
+            if (u) socket.emit("balanceUpdate", { balance: u.balance });
+        });
+    } else {
+        // 如果沒有，則初始化一個新的 (但不開始)
+        // 或者等到 startGame 再建立也可以。這裡維持原樣先建立實例，但在 startGame 重置
+        // 為了避免記憶體洩漏，我們可以在 startGame 才真正建立，或者這裡建立但標記為 idle
+        // 這裡採取：若無遊戲，暫不建立，等到 startGame 請求
+    }
+
+    socket.on("startGame", async (data: { bet: number }) => {
+        // 從 socket.user 取得 ID，而不是信任前端傳來的 data.userId
+        const userId = user.id;
+
+        // 如果該使用者已有遊戲且正在進行中，或許應該拒絕或重置？
+        // 這裡假設 startGame 代表新的一局
+        if (!games[userId]) {
+            games[userId] = new GameService();
+        }
+        const game = games[userId];
 
         // 1. 使用 UserService 驗證餘額
         try {
-            const user = await UserService.getUser(data.userId);
-            if (!user || user.balance < data.bet) {
+            const dbUser = await UserService.getUser(userId);
+            if (!dbUser || dbUser.balance < data.bet) {
                 socket.emit("error", { message: "Insufficient balance" });
                 return;
             }
 
             // 2. 扣除餘額
-            await UserService.updateBalance(data.userId, -data.bet);
+            await UserService.updateBalance(userId, -data.bet);
 
             // 3. 開始遊戲邏輯
             game.startGame(data.bet);
 
             // 4. 發送更新 (餘額與遊戲狀態)
-            socket.emit("balanceUpdate", { balance: user.balance - data.bet });
-            io.to(socket.id).emit("gameState", game.getState());
+            socket.emit("balanceUpdate", { balance: dbUser.balance - data.bet });
+            // 廣播給該使用者的這個 socket (其實如果多裝置登入，應該用 io.to(userId room)... 但目前先這樣)
+            socket.emit("gameState", game.getState());
 
         } catch (e) {
             console.error(e);
@@ -165,23 +220,26 @@ io.on("connection", (socket) => {
     });
 
     socket.on("hit", () => {
-        const game = games[socket.id];
+        const game = games[user.id];
         if (game) {
             game.hit();
             socket.emit("gameState", game.getState());
         }
     });
 
-    socket.on("stand", async (data: { userId: string }) => {
-        const game = games[socket.id];
+    socket.on("stand", async () => {
+        const game = games[user.id];
         if (!game) return;
+
+        // 防止重複 Stand 或非遊戲狀態
+        if (game.status !== 'playing') return;
 
         const { payout } = game.dealerTurn();
 
         // 如果贏了或平手，同步獎金
         if (payout > 0) {
             try {
-                const updatedUser = await UserService.updateBalance(data.userId, payout);
+                const updatedUser = await UserService.updateBalance(user.id, payout);
                 socket.emit("balanceUpdate", { balance: updatedUser.balance });
             } catch (e) {
                 console.error("Payout failed", e);
@@ -192,7 +250,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on("reset", () => {
-        const game = games[socket.id];
+        const game = games[user.id];
         if (game) {
             game.resetGame();
             socket.emit("gameState", game.getState());
@@ -200,8 +258,16 @@ io.on("connection", (socket) => {
     });
 
     socket.on("disconnect", () => {
-        console.log(`[Socket] Disconnected: ${socket.id}`);
-        delete games[socket.id];
+        console.log(`[Socket] Disconnected: ${user.email}`);
+        // 關鍵：斷線時 **不要** 刪除遊戲狀態
+        // delete games[user.id]; 
+
+        // 可選：設定一個 Timer，例如 30 分鐘後才清除，避免記憶體無限膨脹
+        // setTimeout(() => {
+        //     if (games[user.id] && ... user still disconnected ...) {
+        //         delete games[user.id];
+        //     }
+        // }, 30 * 60 * 1000);
     });
 });
 

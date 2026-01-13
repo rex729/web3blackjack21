@@ -38,14 +38,32 @@ export const useGameStore = defineStore('game', {
         initializeSocket() {
             if (this.socket) return;
 
-            this.socket = io('http://localhost:4000'); // 確保這裡與後端連接埠匹配
+            // 重置本地狀態，避免顯示上一次的殘留畫面
+            this.playerHand = [];
+            this.dealerHand = [];
+            this.playerScore = 0;
+            this.dealerScore = 0;
+            this.status = 'idle';
+            this.currentBet = 0;
+
+            const authStore = useAuthStore();
+            const token = authStore.token;
+
+            // 傳送 Token 進行驗證
+            this.socket = io('http://localhost:4000', {
+                auth: { token }
+            });
 
             this.socket.on('connect', () => {
                 this.message = 'Connected to server.';
             });
 
+            this.socket.on('disconnect', () => {
+                this.message = 'Disconnected. Trying to reconnect...';
+            });
+
             this.socket.on('gameState', (state: any) => {
-                // 1. 總是先更新手牌，讓動畫可以先跑
+                // 1. 總是先更新手牌資料，讓前端元件 (Vue) 可以先渲染出牌
                 const oldPlayerHandCount = this.playerHand.length;
                 const oldDealerHandCount = this.dealerHand.length;
 
@@ -53,26 +71,27 @@ export const useGameStore = defineStore('game', {
                 this.dealerHand = state.dealerHand;
                 this.currentBet = state.currentBet;
 
-                // 2. 判斷是否為「新局開始」(從 Betting/Idle -> Playing)
-                // 這種情況需要立即切換 UI (隱藏下注區)，不需要等待動畫結束
+                // 2. 判斷情境：
+                // Case A: 新局開始 (從 Betting/Idle -> Playing) -> 需立即切換 UI 顯示 Board
+                // Case B: 斷線重連 (因為 initializeSocket 會先重置為 Idle，所以這裡也會判定為 True) -> 需立即恢復 Board
                 const isGameStart = (this.status === 'betting' || this.status === 'idle') && state.status === 'playing';
 
-                // 3. 判斷是否有新牌加入
+                // Case C: 遊戲中途加牌 -> 需播放發牌動畫 (延遲顯示分數)
                 const hasNewCards = (this.playerHand.length > oldPlayerHandCount) ||
                     (this.dealerHand.length > oldDealerHandCount);
 
                 if (isGameStart) {
-                    // 遊戲剛開始：立即更新狀態以隱藏下注 UI，但點數可以稍後顯示
+                    // [新局/重連] 立即更新狀態以顯示遊戲面板
                     this.status = state.status;
                     this.message = state.message;
 
-                    // 點數還是稍微延遲一下，配合發牌動畫
+                    // 稍微延遲顯示分數，讓畫面有一點「載入/發牌」的節奏感
                     setTimeout(() => {
                         this.playerScore = state.playerScore;
                         this.dealerScore = state.dealerScore;
                     }, 600);
                 } else if (hasNewCards) {
-                    // 遊戲中途加牌：維持原有的延遲邏輯
+                    // [加牌] 維持原有的動畫延遲邏輯
                     // 階段一：動畫進行到約 3/4 時 (600ms)，更新點數
                     setTimeout(() => {
                         this.playerScore = state.playerScore;
@@ -85,7 +104,7 @@ export const useGameStore = defineStore('game', {
                         this.message = state.message;
                     }, 1000);
                 } else {
-                    // 其他情況 (例如重置或純訊息更新)，立即同步
+                    // [其他] (例如重置、Stand 後的狀態更新)，直接同步無需延遲
                     this.playerScore = state.playerScore;
                     this.dealerScore = state.dealerScore;
                     this.status = state.status;
@@ -117,9 +136,9 @@ export const useGameStore = defineStore('game', {
                 return;
             }
 
+            // Server 自動從 Token 判斷 UserId，無需前端傳送
             this.socket.emit('startGame', {
-                bet: this.currentBet,
-                userId: authStore.user.id
+                bet: this.currentBet
             });
         },
 
@@ -136,7 +155,8 @@ export const useGameStore = defineStore('game', {
         stand() {
             const authStore = useAuthStore();
             if (!authStore.user || !this.socket) return;
-            this.socket.emit('stand', { userId: authStore.user.id });
+            // Server 自動從 Token 判斷 UserId
+            this.socket.emit('stand');
         },
 
         resetGame() {
