@@ -1,13 +1,18 @@
 import { defineStore } from 'pinia';
 import axios from 'axios';
 
-const API_URL = 'http://localhost:4000/api';
+const API_URL = '/api';
 
 export interface User {
+    /** 使用者唯一識別碼 */
     id: string;
+    /** 電子郵件 */
     email: string;
+    /** 顯示名稱 */
     name: string;
+    /** 頭像路徑 */
     image: string;
+    /** 目前餘額 */
     balance: number;
 }
 
@@ -24,6 +29,10 @@ export const useAuthStore = defineStore('auth', {
     actions: {
 
 
+        /**
+         * 使用 Google Credential 登入
+         * @param credential Google 提供的 JWT 字串
+         */
         async loginWithGoogle(credential: string) {
             this.loading = true;
             this.error = null;
@@ -44,6 +53,9 @@ export const useAuthStore = defineStore('auth', {
             }
         },
 
+        /**
+         * 初始化應用程式 (檢查本地 Token 並恢復使用者狀態)
+         */
         async initialize() {
             if (!this.token) return;
             this.loading = true;

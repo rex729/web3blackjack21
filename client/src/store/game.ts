@@ -35,8 +35,16 @@ export const useGameStore = defineStore('game', {
     },
 
     actions: {
+        disconnectSocket() {
+            if (this.socket) {
+                this.socket.disconnect();
+                this.socket = null;
+            }
+        },
+
         initializeSocket() {
-            if (this.socket) return;
+            // 確保每次初始化都是乾淨的新連線 (避免切換帳號時殘留舊 Socket)
+            this.disconnectSocket();
 
             // 重置本地狀態，避免顯示上一次的殘留畫面
             this.playerHand = [];
@@ -50,8 +58,10 @@ export const useGameStore = defineStore('game', {
             const token = authStore.token;
 
             // 傳送 Token 進行驗證
-            this.socket = io('http://localhost:4000', {
-                auth: { token }
+            // 不指定 URL，自動連線到當前 Host (透過 Ingress / Nginx Proxy 轉發)
+            this.socket = io({
+                auth: { token },
+                forceNew: true // 強制建立新連線，避免 Socket.io 復用舊的連線實例導致 Token 未更新
             });
 
             this.socket.on('connect', () => {

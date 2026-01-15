@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: uck729/web3blackjack-backend:latest # 請替換為您的實際映像檔
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 4000
+        env:
+        - name: PORT
+          value: "4000"
+        - name: JWT_SECRET
+          value: "mock-jwt-secret-for-local-dev-only" # 生產環境請改用 K8s Secrets
+        - name: DATABASE_URL
+          value: "file:./dev.db" # 提醒：SQLite 不適合多個 Pods 環境！
+          # 重要：若有多個副本，必須使用 Postgres/MySQL 等集中式資料庫。
+          # 如果在多個 Pod 中使用 SQLite，資料將會遺失或不一致。
+        # - name: REDIS_HOST
+        #   value: "redis-service" # 若稍後啟用 Redis
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  selector:
+    app: backend
+  ports:
+    - protocol: TCP
+      port: 4000
+      targetPort: 4000
+  type: ClusterIP

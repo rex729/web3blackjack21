@@ -1,0 +1,58 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: blackjack-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    
+    # --------------------------------------------------------------------------
+    # Sticky Session Settings (關鍵設定 - 讓斷線玩家連回同一台 Pod)
+    # --------------------------------------------------------------------------
+    # 啟用 Cookie-based Session Affinity
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    # Cookie 名稱 (瀏覽器會儲存這個 cookie)
+    nginx.ingress.kubernetes.io/session-cookie-name: "blackjack-route"
+    # 使用 hash 演算法來對應 Pod
+    nginx.ingress.kubernetes.io/session-cookie-hash: "sha1"
+    # Cookie 過期時間 (例如 172800 秒 = 48 小時)
+    nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
+
+    # CORS 設定 (如果需要的話，雖然同源通常不需要)
+    # nginx.ingress.kubernetes.io/enable-cors: "true"
+    
+    # WebSocket 支援 (通常 Nginx Ingress 預設支援，但以防萬一可加)
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+
+spec:
+  rules:
+  - http:
+      paths:
+      # 1. 前端路由 (Client)
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: client-service
+            port:
+              number: 80
+      
+      # 2. 後端 API 路由
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: backend-service
+            port:
+              number: 4000
+      
+      # 3. Socket.IO 路由 (Websocket)
+      - path: /socket.io
+        pathType: Prefix
+        backend:
+          service:
+            name: backend-service
+            port:
+              number: 4000

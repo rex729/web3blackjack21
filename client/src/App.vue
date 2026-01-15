@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick } from 'vue';
-import { Spade, Heart, Club, Diamond, LogIn } from 'lucide-vue-next';
+import { onMounted, watch, nextTick } from 'vue';
+import { Spade, Heart, Club, Diamond } from 'lucide-vue-next';
 import Board from './components/Board.vue';
 import { useAuthStore } from './store/auth';
 import { useGameStore } from './store/game';
@@ -17,6 +17,8 @@ const handleGoogleCallback = async (response: any) => {
   const success = await authStore.loginWithGoogle(response.credential);
   if (success) {
     console.log("Google Login Success");
+    // 登入成功後，立即初始化 Socket 連線 (確保使用新 Token)
+    gameStore.initializeSocket();
   }
 };
 
@@ -39,6 +41,9 @@ const renderGoogleButton = () => {
 // Re-render button when logging out
 watch(() => authStore.user, (newVal) => {
   if (!newVal) {
+    // 登出時，斷開 Socket 連線並重置 Google 按鈕
+    gameStore.disconnectSocket();
+    
     // 短暫延遲確保 DOM 已更新
     setTimeout(() => renderGoogleButton(), 100);
   }

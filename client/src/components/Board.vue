@@ -4,7 +4,7 @@ import { useGameStore } from '@/store/game';
 import { useAuthStore } from '@/store/auth';
 import HandComp from './Hand.vue';
 import ControlsComp from './Controls.vue';
-import { Wallet, RefreshCw } from 'lucide-vue-next';
+import { Wallet, RefreshCw, Coins } from 'lucide-vue-next';
 
 const store = useGameStore();
 const authStore = useAuthStore();
@@ -28,10 +28,18 @@ const showDealerScore = () => {
 
     <!-- HUD -->
     <div class="relative z-10 flex justify-between items-center p-6 w-full">
-        <!-- Left Side: Live Indicator -->
-        <div class="flex items-center gap-2 bg-black/40 px-6 py-3 rounded-full text-white backdrop-blur-md border border-white/10 h-[52px]">
-            <div class="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-            <span class="font-mono text-xs tracking-widest uppercase text-white/50 italic font-bold">LIVE</span>
+        <!-- Left Side: Live Indicator & Bet -->
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2 bg-black/40 px-6 py-3 rounded-full text-white backdrop-blur-md border border-white/10 h-[52px]">
+                <div class="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                <span class="font-mono text-xs tracking-widest uppercase text-white/50 italic font-bold">LIVE</span>
+            </div>
+
+            <!-- Current Bet Display -->
+            <div v-if="store.currentBet > 0" class="flex items-center gap-2 bg-black/40 px-6 py-3 rounded-full text-white backdrop-blur-md border border-white/10 h-[52px]">
+                <Coins class="w-4 h-4 text-yellow-500" />
+                <span class="font-mono text-xs tracking-widest uppercase text-white/50 font-bold">BET: ${{ store.currentBet }}</span>
+            </div>
         </div>
 
         <!-- Right Side: Balance & Avatar -->

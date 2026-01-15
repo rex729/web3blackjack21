@@ -10,7 +10,7 @@ import jwt from "jsonwebtoken";
 dotenv.config();
 
 const GOOGLE_CLIENT_ID = "35708177818-vt66utfbrr6ivjtjch3nnk31aihfk1e0.apps.googleusercontent.com";
-const JWT_SECRET = "mock-jwt-secret-for-local-dev-only"; // In production, move to .env
+const JWT_SECRET = "mock-jwt-secret-for-local-dev-only"; // 生產環境請移至 .env
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 const app = express();
@@ -25,10 +25,10 @@ const io = new Server(httpServer, {
 app.use(cors());
 app.use(express.json());
 
-// Auth API
+// Auth API (認證 API)
 
 
-// Google Auth API
+// Google Auth API (Google 登入驗證)
 app.post("/api/auth/google", async (req, res) => {
     const { credential } = req.body;
 
@@ -75,7 +75,7 @@ app.post("/api/auth/google", async (req, res) => {
     }
 });
 
-// Validate Token / Get Me
+// Validate Token / Get Me (驗證 Token / 取得個人資訊)
 app.get("/api/auth/me", async (req, res) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -103,7 +103,7 @@ app.get("/api/auth/me", async (req, res) => {
     }
 });
 
-// 餘額更新 API
+// 餘額更新 API (Balance Update API)
 // 前端遊戲結束或下注時呼叫此 API 更新使用者餘額
 app.post("/api/user/balance", async (req, res) => {
     const { userId, amountChange } = req.body;
@@ -121,8 +121,8 @@ app.post("/api/user/balance", async (req, res) => {
     }
 });
 
-// Socket.io for future real-time features
-// Socket.io with Auth and Reconnection Support
+// Socket.io 用於即時功能
+// 具備驗證與重連支援的 Socket.io (Socket.io with Auth and Reconnection Support)
 import { GameService } from "./services/gameService";
 
 interface AuthenticatedSocket extends Server {
@@ -202,6 +202,7 @@ io.on("connection", (socket: any) => {
     socket.on("startGame", async (data: { bet: number }) => {
         // 從 socket.user 取得 ID，而不是信任前端傳來的 data.userId
         const userId = user.id;
+        console.log(`[Game] startGame request from ${user.email} (ID: ${userId})`);
 
         // 如果該使用者已有遊戲且正在進行中，或許應該拒絕或重置？
         // 這裡假設 startGame 代表新的一局
@@ -283,8 +284,8 @@ io.on("connection", (socket: any) => {
             return;
         }
 
-        // 若無其他連線，啟動 30 秒自動結算 (Auto-Stand) 機制
-        console.log(`[Socket] No active connections for ${user.email}. Starting 30s cleanup timer.`);
+        // 若無其他連線，啟動 60 秒自動結算 (Auto-Stand) 機制
+        console.log(`[Socket] No active connections for ${user.email}. Starting 60s cleanup timer.`);
 
         disconnectTimeouts[user.id] = setTimeout(async () => {
             console.log(`[Game] Timeout reached for ${user.email}. Enhancing auto-stand logic.`);
@@ -310,7 +311,7 @@ io.on("connection", (socket: any) => {
             }
 
             delete disconnectTimeouts[user.id];
-        }, 30000); // 30 秒
+        }, 60000); // 60 秒
     });
 });
 
