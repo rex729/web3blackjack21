@@ -1,0 +1,88 @@
+Web3 Blackjack - 測試計畫與項目列表 (Test Plan)
+
+此文件列出了針對 Web3 Blackjack 應用程式的詳細測試項目，重點在於驗證即時連線穩定性、使用者身份一致性與遊戲核心邏輯。
+
+1. 使用者認證與狀態 (Authentication & State)
+------------------------------------------------
+A01 | Google 登入流程
+      - 預期結果: 點擊按鈕後成功登入，顯示頭像、名稱與餘額。
+      - 關鍵邏輯: authStore.loginWithGoogle
+
+A02 | JWT Token 儲存
+      - 預期結果: 登入後 localStorage 中應有名為 auth_token 的項目。
+      - 關鍵邏輯: localStorage
+
+A03 | 登出清除狀態
+      - 預期結果: 登出後 localStorage 清空，UI 回到登入畫面，Socket 斷線。
+      - 關鍵邏輯: authStore.logout, gameStore.disconnectSocket
+
+A04 | 頁面重整保持登入
+      - 預期結果: 重整頁面 (F5) 後，應自動恢復登入狀態且餘額正確。
+      - 關鍵邏輯: authStore.initialize
+
+2. WebSocket 連線與身份一致性 (Socket & Identity)
+------------------------------------------------
+*此部分為關鍵測試，旨在驗證多帳號切換時的資料正確性。*
+
+S01 | 單一帳號連線建立
+      - 步驟: 登入後檢查 Network 標籤頁。
+      - 預期結果: 應看到 socket.io 連線建立 (Status 101)，且 Protocol 為 Websocket。
+
+S02 | 同瀏覽器切換帳號 (關鍵)
+      - 步驟: 
+          1. 登入帳號 A
+          2. 登出
+          3. 登入帳號 B (User B)
+          4. 點擊「下注」
+      - 預期結果: 
+          - 後端 Log 應顯示 User B 的 ID。
+          - 下注應扣除 User B 的餘額。
+          - User A 的餘額不應受影響。
+
+S03 | 斷線重連機制 (Auto-Reconnect)
+      - 步驟: 在遊戲中途手動斷網 (Offline Mode) 或重啟 Server。
+      - 預期結果: 前端應顯示 "Disconnected"，網路恢復後應自動重連並恢復遊戲狀態 (Hand/Score)。
+
+S04 | 多視窗同步 (Multi-Tab)
+      - 步驟: 同一帳號開啟兩個分頁。
+      - 預期結果: 分頁 A 下注或要牌，分頁 B 應即時同步顯示相同的牌局狀態與餘額。
+
+S05 | Socket 強制新連線
+      - 檢查程式碼邏輯: io() 連線時應包含 forceNew: true 選項，確保不復用舊連線。
+
+3. 遊戲核心邏輯 (Game Logic)
+------------------------------------------------
+G01 | 正常下注流程
+      - 預期結果: 下注金額小於等於餘額時，下注成功，扣款，發兩張牌。
+
+G02 | 餘額不足下注
+      - 預期結果: 下注金額大於餘額時，應顯示錯誤訊息 "Insufficient balance"，不扣款，不發牌。
+
+G03 | Hit (要牌)
+      - 預期結果: 點擊 Hit，玩家手牌增加一張，分數即時更新。若爆牌 (>21) 應直接判負。
+
+G04 | Stand (停牌)
+      - 預期結果: 點擊 Stand，玩家回合結束，莊家開始抽牌直到 >=17。結算輸贏並派彩。
+
+G05 | Blackjack (21點)
+      - 預期結果: 起手兩張牌為 A + 10/J/Q/K，應直接判贏 (Blackjack)，通常賠率 3:2。
+
+G06 | Push (平手)
+      - 預期結果: 玩家與莊家點數相同 (且未爆牌)，應退還下注金額。
+
+G07 | Dealer 邏輯
+      - 預期結果: 莊家點數 < 17 時必須強制要牌 (Hit)，>= 17 時必須停牌 (Stand)。
+
+4. 異常處理與邊界案例 (Edge Cases & Error Handling)
+------------------------------------------------
+E01 | 中途斷線保護 (30s/60s Timeout)
+      - 步驟: 遊戲中途直接關閉瀏覽器。
+      - 預期結果: 60秒內重連應看到原牌局。60秒後後端應自動執行 Auto-Stand 結算。
+
+E02 | EKS 多 Pod 路由 (Sticky Session)
+      - (僅限 EKS 環境) 連續發送多個請求或 Refresh。
+      - 預期結果: ingress-nginx 的 Cookie (blackjack-route) 應確保請求都導向同一個 Backend Pod。
+
+E03 | Token 過期處理
+      - 步驟: 模擬 Token 過期 (或刪除 LocalStorage Token) 後嘗試連線。
+      - 預期結果: 應自動被踢出或要求重新登入。

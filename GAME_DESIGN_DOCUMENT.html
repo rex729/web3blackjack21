@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Timeline: BNB Smart Chain Focus</title>
+    <style>
+        :root {
+            --bg-color: #0b0c10;
+            --card-bg: #1f2833;
+            --accent-gold: #f0b90b;
+            /* BNB Chain Yellow */
+            --accent-blue: #45a29e;
+            /* Phase 2 Cyan */
+            --accent-green: #66fcf1;
+            /* Tech Highlights */
+            --accent-red: #e74c3c;
+            /* Status: In Progress */
+            --text-main: #c5c6c7;
+            --text-white: #ffffff;
+            --border-radius: 12px;
+            --font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-family);
+            line-height: 1.6;
+            padding-bottom: 60px;
+        }
+
+        header {
+            background: linear-gradient(180deg, #000000 0%, #1f2833 100%);
+            padding: 40px 20px;
+            text-align: center;
+            border-bottom: 3px solid var(--accent-gold);
+            box-shadow: 0 4px 20px rgba(240, 185, 11, 0.2);
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            color: var(--accent-gold);
+            font-size: 2.2rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(240, 185, 11, 0.3);
+        }
+
+        .subtitle {
+            color: var(--text-main);
+            font-size: 1rem;
+            margin-top: 10px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Timeline Styling */
+        .phase-section {
+            margin-bottom: 60px;
+            position: relative;
+            padding-left: 30px;
+            border-left: 3px solid #333;
+            transition: all 0.3s ease;
+        }
+
+        .phase-section:last-child {
+            border-left: none;
+        }
+
+        /* Current Phase Highlighting */
+        .phase-section.current {
+            border-left: 3px solid var(--accent-gold);
+        }
+
+        .phase-section.current h2 {
+            color: var(--accent-gold);
+            text-shadow: 0 0 10px rgba(240, 185, 11, 0.3);
+        }
+
+        .phase-badge {
+            background-color: #333;
+            color: #aaa;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            display: inline-block;
+            margin-bottom: 15px;
+            border: 1px solid #555;
+            position: absolute;
+            left: -42px;
+            top: 0;
+            z-index: 2;
+            background-color: var(--bg-color);
+        }
+
+        .phase-section.current .phase-badge {
+            background-color: var(--accent-gold);
+            color: #000;
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 15px rgba(240, 185, 11, 0.4);
+        }
+
+        h2 {
+            color: var(--text-white);
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+
+        .duration {
+            color: var(--text-main);
+            font-size: 0.9rem;
+            margin-bottom: 25px;
+            display: block;
+        }
+
+        /* Task Grid */
+        .task-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .task-card {
+            background-color: var(--card-bg);
+            border: 1px solid #333;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            transition: transform 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .task-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--text-main);
+        }
+
+        .phase-section.current .task-card {
+            border-color: rgba(240, 185, 11, 0.3);
+        }
+
+        .task-card h3 {
+            color: var(--text-white);
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .icon {
+            font-size: 1.2rem;
+        }
+
+        .task-list {
+            list-style: none;
+            color: var(--text-main);
+            font-size: 0.95rem;
+        }
+
+        .task-list li {
+            margin-bottom: 10px;
+            padding-left: 15px;
+            position: relative;
+        }
+
+        .phase-section.current .task-list li::before {
+            color: var(--accent-gold);
+        }
+
+        .task-list li::before {
+            content: "▹";
+            position: absolute;
+            left: 0;
+            color: var(--accent-blue);
+        }
+
+        /* Tech Tags */
+        .tech-tag {
+            display: inline-block;
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            margin-right: 5px;
+            margin-top: 10px;
+            color: #aaa;
+            border: 1px solid #444;
+        }
+
+        .tag-bnb {
+            background: rgba(240, 185, 11, 0.1);
+            color: var(--accent-gold);
+            border: 1px solid rgba(240, 185, 11, 0.3);
+        }
+
+        /* Footer */
+        .status-bar {
+            background: #111;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border: 1px dashed #444;
+            color: #777;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        .logic-done {
+            color: var(--accent-green);
+            font-weight: bold;
+            font-size: 0.9rem;
+            border: 1px solid var(--accent-green);
+            padding: 2px 8px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>專案開發全進度表 v2.2</h1>
+        <div class="subtitle">鎖定環境：BNB Smart Chain Testnet | 多人連線架構</div>
+    </header>
+
+    <div class="container">
+
+        <div style="margin-bottom: 50px; text-align: center;">
+            <span class="logic-done">✅ 單機遊戲邏輯 Done</span>
+            <p style="color: var(--text-main); margin-top: 10px;">
+                目前聚焦於測試網金流整合，並同時規劃 WebSocket 多人對戰架構。
+            </p>
+        </div>
+
+        <div class="phase-section current">
+            <span class="phase-badge">PHASE 1</span>
+            <h2>金流基礎建設 (Payment Infrastructure)</h2>
+            <span class="duration">狀態：🔥 進行中 | 鏈：BNB Smart Chain Testnet | 優先級：P0</span>
+            <p style="color: #aaa; margin-bottom: 20px;">
+                目標：在 EVM (Ethereum Virtual Machine) 環境下跑通 USDT 充值流程。
+            </p>
+
+            <div class="task-grid">
+                <div class="task-card">
+                    <h3 style="color: var(--accent-gold);">BNB Testnet 環境搭建 <span class="icon">🔌</span></h3>
+                    <ul class="task-list">
+                        <li><strong>RPC 配置：</strong> 連接 <code>data-seed-prebsc-1-s1.binance.org:8545</code>。</li>
+                        <li><strong>Gas Fee 領取：</strong> 使用官方 BNB Smart Chain Faucet 獲取 tBNB。</li>
+                        <li><strong>MetaMask 整合：</strong> 設置 Chain ID 97 進行除錯。</li>
+                    </ul>
+                    <span class="tech-tag tag-bnb">Chain ID: 97</span>
+                    <span class="tech-tag tag-bnb">tBNB</span>
+                </div>
+
+                <div class="task-card">
+                    <h3 style="color: var(--accent-gold);">測試代幣部署 <span class="icon">📜</span></h3>
+                    <ul class="task-list">
+                        <li><strong>Mock USDT：</strong> 撰寫並部署符合 BEP-20 標準的簡易合約。</li>
+                        <li><strong>Remix IDE：</strong> 透過 Remix 進行合約編譯與上鏈 (Deploy)。</li>
+                        <li><strong>水龍頭邏輯：</strong> (可選) 在合約中加入 mint 函數以便測試。</li>
+                    </ul>
+                    <span class="tech-tag tag-bnb">Solidity</span>
+                    <span class="tech-tag tag-bnb">BEP-20</span>
+                </div>
+
+                <div class="task-card">
+                    <h3 style="color: var(--accent-gold);">EVM 鏈上監聽器 <span class="icon">📡</span></h3>
+                    <ul class="task-list">
+                        <li><strong>Web3.py 整合：</strong> 使用 Python 連接 BNB Testnet 節點。</li>
+                        <li><strong>Event Filtering：</strong> 監聽 Mock USDT 合約的 <code>Transfer</code> 事件。</li>
+                        <li><strong>入帳確認：</strong> 等待 3-6 個區塊確認 (Block Confirmations)。</li>
+                    </ul>
+                    <span class="tech-tag">Web3.py</span>
+                    <span class="tech-tag">Python</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="phase-section">
+            <span class="phase-badge">PHASE 2</span>
+            <h2>多人連線與即時同步 (Multiplayer Networking)</h2>
+            <span class="duration">預估週期：3 - 4 週 | 優先級：P1</span>
+            <p style="color: #aaa; margin-bottom: 20px;">
+                目標：將單機邏輯搬上雲端，實現「多人同桌」與「即時對戰」。
+            </p>
+
+            <div class="task-grid">
+                <div class="task-card">
+                    <h3 style="color: var(--accent-blue);">WebSocket 即時架構 <span class="icon">⚡</span></h3>
+                    <ul class="task-list">
+                        <li><strong>長連接通訊：</strong> 建立 Client/Server 的 WebSocket 雙向通道。</li>
+                        <li><strong>狀態廣播 (Broadcaster)：</strong> 推送 <code>PLAYER_HIT</code>, <code>DEALER_TURN</code>
+                            等事件。</li>
+                        <li><strong>斷線重連：</strong> 伺服器保留牌桌快照 (Snapshot) 供玩家重回牌局。</li>
+                    </ul>
+                    <span class="tech-tag">WebSocket</span>
+                    <span class="tech-tag">Redis Pub/Sub</span>
+                </div>
+
+                <div class="task-card">
+                    <h3 style="color: var(--accent-blue);">房廳管理系統 <span class="icon">🛋️</span></h3>
+                    <ul class="task-list">
+                        <li><strong>座位邏輯：</strong> 處理 5 人座的併發入座請求 (Race Condition)。</li>
+                        <li><strong>回合控制：</strong> 伺服器端強制執行 15 秒倒數，逾時自動停牌。</li>
+                        <li><strong>遊戲狀態機：</strong> 將 Python 單機邏輯封裝為 Server-Authoritative 服務。</li>
+                    </ul>
+                    <span class="tech-tag">FastAPI</span>
+                    <span class="tech-tag">Docker</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="phase-section">
+            <span class="phase-badge">PHASE 3</span>
+            <h2>錦標賽與營運系統 (Tournaments)</h2>
+            <span class="duration">預估週期：2 - 3 週 | 優先級：P2</span>
+
+            <div class="task-grid">
+                <div class="task-card">
+                    <h3 style="color: #a29bfe;">錦標賽引擎 <span class="icon">🏆</span></h3>
+                    <ul class="task-list">
+                        <li><strong>MTT 淘汰制：</strong> 實作多桌同步開賽與升盲 (Blinds Up) 機制。</li>
+                        <li><strong>併桌演算法：</strong> 動態平衡各桌人數，確保遊戲緊湊。</li>
+                    </ul>
+                </div>
+                <div class="task-card">
+                    <h3 style="color: #a29bfe;">激勵與觀戰 <span class="icon">🎁</span></h3>
+                    <ul class="task-list">
+                        <li><strong>觀戰模式：</strong> 允許訂閱決賽桌的即時串流。</li>
+                        <li><strong>任務系統：</strong> 每日登入與勝場獎勵。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="phase-section">
+            <span class="phase-badge">PHASE 4</span>
+            <h2>測試、優化與發布 (Launch)</h2>
+            <span class="duration">預估週期：2 週 | 優先級：P3</span>
+
+            <div class="task-grid">
+                <div class="task-card">
+                    <h3 style="color: var(--accent-green);">主網切換 (Mainnet) <span class="icon">🚀</span></h3>
+                    <ul class="task-list">
+                        <li><strong>RPC 切換：</strong> 從 Testnet 轉向 BNB Smart Chain Mainnet。</li>
+                        <li><strong>真實資金測試：</strong> 小額 USDT (BEP-20) 實盤驗證。</li>
+                    </ul>
+                    <span class="tech-tag">Production</span>
+                </div>
+                <div class="task-card">
+                    <h3 style="color: var(--accent-green);">壓力測試 <span class="icon">🛡️</span></h3>
+                    <ul class="task-list">
+                        <li><strong>高併發模擬：</strong> 測試 1000+ WebSocket 同時連線穩定性。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <div class="status-bar">
+                <strong>💡 開發提示：</strong> 確保您的後端使用的是 <code>Web3.py</code> (Python) 或 <code>Ethers.js</code> (Node.js) 來與
+                EVM 鏈進行交互。
+            </div>
+            <p style="margin-top: 20px; text-align: center;">&copy; 2026 Development Roadmap</p>
+        </footer>
+
+    </div>
+
+</body>
+
+</html>
