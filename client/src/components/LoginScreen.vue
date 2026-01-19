@@ -2,10 +2,8 @@
 import { onMounted, nextTick } from 'vue';
 import { Spade, Heart, Club, Diamond } from 'lucide-vue-next';
 import { useAuthStore } from '../store/auth';
-import { useGameStore } from '../store/game';
 
 const authStore = useAuthStore();
-const gameStore = useGameStore();
 
 // Replace with your actual Client ID from Google Cloud Console
 const GOOGLE_CLIENT_ID = "35708177818-vt66utfbrr6ivjtjch3nnk31aihfk1e0.apps.googleusercontent.com";

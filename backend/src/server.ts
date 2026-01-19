@@ -58,6 +58,8 @@ app.post("/api/auth/google", async (req, res) => {
         // 簽發 JWT
         const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
 
+        console.log(`[Auth] Google Login Success: ${user.name} (${user.email}) - ID: ${user.id}`);
+
         res.json({
             success: true,
             token,
@@ -87,6 +89,8 @@ app.get("/api/auth/me", async (req, res) => {
         const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
         const user = await UserService.getUser(decoded.userId);
         if (!user) throw new Error("User not found");
+
+        console.log(`[Auth] Session Resumed: ${user.name} (${user.email})`);
 
         res.json({
             success: true,
@@ -274,8 +278,8 @@ io.on("connection", (socket: any) => {
         }
     });
 
-    socket.on("disconnect", async () => {
-        console.log(`[Socket] Disconnected: ${user.email}`);
+    socket.on("disconnect", async (reason: string) => {
+        console.log(`[Socket] Disconnected: ${user.name} (${user.email}) - SocketID: ${socket.id} - Reason: ${reason}`);
 
         // 檢查該使用者是否還有其他活躍的連線 (例如開了多個分頁)
         const sockets = await io.in(user.id).fetchSockets();
