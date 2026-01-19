@@ -1,11 +1,46 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useAuthStore } from '../store/auth';
 import { useLobbyStore } from '../store/lobby';
 import { Trophy, Globe, ShoppingCart, Gift, UserCircle, Hexagon, Lock, MapPin } from 'lucide-vue-next';
 
 const authStore = useAuthStore();
 const lobbyStore = useLobbyStore();
+
+// 顯示用的餘額 (用於數字滾動動畫)
+const displayedBalance = ref(authStore.user?.balance ?? 0);
+const isBalanceAnimating = ref(false);
+
+// 監聽實際餘額變化，執行滾動動畫
+watch(() => authStore.user?.balance, (newVal, oldVal) => {
+    if (newVal === undefined) return;
+    if (oldVal === undefined) {
+        displayedBalance.value = newVal;
+        return;
+    }
+
+    // 觸發縮放動畫
+    isBalanceAnimating.value = true;
+    setTimeout(() => { isBalanceAnimating.value = false; }, 300);
+
+    const start = displayedBalance.value;
+    const end = newVal;
+    const duration = 1200; // 動畫時間 1.2秒
+    const startTime = performance.now();
+
+    const animate = (currentTime: number) => {
+        const elapsed = currentTime - startTime;
+        if (elapsed < duration) {
+            // Ease Out Quart function: 1 - pow(1 - x, 4)
+            const progress = 1 - Math.pow(1 - elapsed / duration, 4);
+            displayedBalance.value = Math.floor(start + (end - start) * progress);
+            requestAnimationFrame(animate);
+        } else {
+            displayedBalance.value = end;
+        }
+    };
+    requestAnimationFrame(animate);
+}, { immediate: true });
 
 // 每次進入大廳時，設定 7秒延遲抓取最新餘額
 // 這是為了配合後端的 "5秒 Auto-Stand" 機制
@@ -14,9 +49,12 @@ onMounted(() => {
     authStore.initialize(); 
 
     // 再設定延遲更新 (捕捉剛剛可能發生的代理人代打結算)
-    setTimeout(() => {
+    setTimeout(async () => {
         console.log("[Lobby] Fetching latest balance after delay...");
-        authStore.initialize();
+        await authStore.initialize();
+        // 強制播放一次彈跳動畫 (即使數值沒變)
+        isBalanceAnimating.value = true;
+        setTimeout(() => { isBalanceAnimating.value = false; }, 300);
     }, 7000);
 });
 
@@ -64,7 +102,7 @@ const handleLevelClick = (level: any) => {
                 <!-- 籌碼 -->
                 <div class="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-full border border-white/10">
                     <div class="w-6 h-6 rounded-full bg-yellow-500 flex items-center justify-center text-black font-bold text-xs">$</div>
-                    <span class="font-mono text-yellow-500 font-bold">{{ authStore.user?.balance?.toLocaleString() ?? 0 }}</span>
+                    <span class="font-mono text-yellow-500 font-bold transition-all duration-300" :class="{'scale-125 text-white': isBalanceAnimating}">{{ displayedBalance.toLocaleString() }}</span>
                     <button class="w-5 h-5 bg-green-600 rounded-full flex items-center justify-center text-[10px] font-bold hover:bg-green-500">+</button>
                 </div>
                 <!-- 綠鈔 (Gems) -->
