@@ -17,7 +17,7 @@ export const LEVELS: LevelConfig[] = [
         name: 'Downtown Basement',
         subtitle: '自家地下室',
         type: 'Single Player',
-        buyIn: 0,
+        buyIn: 5,
         prize: 'Variable',
         color: 'from-zinc-800 to-zinc-900',
         locked: false,

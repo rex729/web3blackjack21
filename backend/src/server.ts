@@ -315,7 +315,7 @@ io.on("connection", (socket: any) => {
             }
 
             delete disconnectTimeouts[user.id];
-        }, 60000); // 60 秒
+        }, 5000); // 5 秒 (測試用)
     });
 });
 

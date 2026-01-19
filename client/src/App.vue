@@ -12,8 +12,8 @@ const gameStore = useGameStore();
 // 監聽使用者狀態變化
 watch(() => authStore.user, (newVal) => {
   if (!newVal) {
-    // 登出：斷開 Socket 連線並重置大廳狀態
-    gameStore.fullLogout();
+    // 登出：斷開 Socket 連線
+    gameStore.disconnectSocket();
   }
   // 注意：登入時**不再**自動連線 Socket，改由進入桌子時觸發
 });

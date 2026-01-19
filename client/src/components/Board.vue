@@ -9,6 +9,7 @@ import { Wallet, RefreshCw, Coins } from 'lucide-vue-next';
 const store = useGameStore();
 const authStore = useAuthStore();
 const isRefreshing = ref(false);
+const showExitModal = ref(false);
 
 const handleRefresh = async () => {
   isRefreshing.value = true;
@@ -60,9 +61,9 @@ const showDealerScore = () => {
               ${{ authStore.user?.balance ?? 0 }}
           </div>
           <div 
-            @click="authStore.logout()"
+            @click="showExitModal = true"
             class="w-[46.8px] h-[46.8px] rounded-full border-2 border-yellow-500/50 overflow-hidden shadow-lg shadow-yellow-500/20 bg-black cursor-pointer hover:border-red-500 transition-colors"
-            title="Click to Logout"
+            title="Exit to Lobby"
           >
               <img :src="authStore.user?.image" alt="Avatar" class="w-full h-full object-cover" />
           </div>
@@ -110,5 +111,41 @@ const showDealerScore = () => {
         <span class="text-[10px] font-mono text-white/50 tracking-tighter uppercase mb-1">Authenticated Account</span>
         <span class="text-xs font-bold text-white tracking-widest">{{ authStore.user?.email }}</span>
     </div>
+
+    <!-- Exit Button (Left Side) -->
+    <div class="absolute bottom-4 left-6 z-20">
+        <button 
+            @click="showExitModal = true"
+            class="px-4 py-2 bg-red-900/50 hover:bg-red-800 text-red-200 border border-red-500/30 rounded-lg text-xs font-bold uppercase tracking-widest transition-all backdrop-blur-sm"
+        >
+            Exit Table
+        </button>
+    </div>
+
+    <!-- Exit Confirmation Modal -->
+    <div v-if="showExitModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div class="bg-zinc-900 border border-white/10 p-8 rounded-2xl w-[90%] max-w-sm flex flex-col gap-6 shadow-2xl">
+            <h3 class="text-xl font-black text-white text-center uppercase tracking-wider">Leave Table?</h3>
+            <p class="text-white/60 text-center font-medium leading-relaxed">
+                Are you sure you want to exit? <br/>
+                <span class="text-red-400 text-sm">Your current progress will be lost.</span>
+            </p>
+            <div class="flex gap-4">
+                <button 
+                    @click="showExitModal = false"
+                    class="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition-colors uppercase text-sm tracking-wider"
+                >
+                    Cancel
+                </button>
+                <button 
+                    @click="store.leaveTable()"
+                    class="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition-colors uppercase text-sm tracking-wider shadow-lg shadow-red-500/20"
+                >
+                    Yes, Exit
+                </button>
+            </div>
+        </div>
+    </div>
+
   </div>
 </template>

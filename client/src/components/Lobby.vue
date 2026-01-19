@@ -1,10 +1,24 @@
 <script setup lang="ts">
+import { onMounted } from 'vue';
 import { useAuthStore } from '../store/auth';
 import { useLobbyStore } from '../store/lobby';
 import { Trophy, Globe, ShoppingCart, Gift, UserCircle, Hexagon, Lock, MapPin } from 'lucide-vue-next';
 
 const authStore = useAuthStore();
 const lobbyStore = useLobbyStore();
+
+// 每次進入大廳時，設定 7秒延遲抓取最新餘額
+// 這是為了配合後端的 "5秒 Auto-Stand" 機制
+onMounted(() => {
+    // 先立即抓一次 (確保剛登入時資料正確)
+    authStore.initialize(); 
+
+    // 再設定延遲更新 (捕捉剛剛可能發生的代理人代打結算)
+    setTimeout(() => {
+        console.log("[Lobby] Fetching latest balance after delay...");
+        authStore.initialize();
+    }, 7000);
+});
 
 // 處理點擊關卡
 const handleLevelClick = (level: any) => {
@@ -68,7 +82,7 @@ const handleLevelClick = (level: any) => {
             <!-- 背景裝飾 -->
             <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-800/20 via-black to-black pointer-events-none"></div>
 
-            <div class="h-full flex items-center px-12 gap-8 w-max mx-auto">
+            <div class="h-full flex items-center px-12 gap-8 w-max min-w-full">
                 
                 <!-- 關卡卡片 -->
                 <div v-for="level in lobbyStore.levels" :key="level.id" 
