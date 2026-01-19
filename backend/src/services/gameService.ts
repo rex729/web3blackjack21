@@ -113,33 +113,47 @@ export class GameService {
         const finalDealerScore = dealerScore;
         let payout = 0;
 
+        // 優先檢查 Blackjack 狀況 (起手兩張牌總和為 21)
+        const playerHasBlackjack = this.playerHand.length === 2 && playerScore === 21;
+        const dealerHasBlackjack = this.dealerHand.length === 2 && finalDealerScore === 21;
+
         if (finalDealerScore > 21) {
-            // 莊家爆牌 (Bust)
+            // 莊家爆牌 -> 玩家獲勝
             this.status = 'won';
             payout = this.currentBet * 2;
             this.message = 'Dealer Bust! You Win!';
+        } else if (playerHasBlackjack) {
+            if (dealerHasBlackjack) {
+                // 雙方都是 Blackjack -> 平手
+                this.status = 'push';
+                payout = this.currentBet;
+                this.message = 'Push (Both Blackjack).';
+            } else {
+                // 玩家擁有 Blackjack -> 贏得 1.5 倍籌碼 (3:2 賠率，總返還 2.5 倍)
+                this.status = 'blackjack';
+                payout = this.currentBet * 2.5;
+                this.message = 'BLACKJACK!';
+            }
+        } else if (dealerHasBlackjack) {
+            // 莊家擁有 Blackjack -> 玩家輸 (除非玩家也是 BJ，已於上方處理)
+            this.status = 'lost';
+            payout = 0;
+            this.message = 'Dealer has Blackjack.';
         } else if (playerScore > finalDealerScore) {
-            // 玩家點數較大
+            // 玩家點數大於莊家 -> 玩家獲勝
             this.status = 'won';
             payout = this.currentBet * 2;
             this.message = 'You Win!';
         } else if (playerScore < finalDealerScore) {
-            // 莊家點數較大
+            // 玩家點數小於莊家 -> 玩家輸
             this.status = 'lost';
             payout = 0;
             this.message = 'Dealer Wins.';
         } else {
-            // 平手 (Push)
+            // 點數相同 -> 平手
             this.status = 'push';
             payout = this.currentBet;
             this.message = 'Push.';
-        }
-
-        // 4. 特殊規則：檢查 Blackjack (雖然這裡簡單用點數勝負，但通常 Blackjack 賠率較高)
-        if (this.playerHand.length === 2 && playerScore === 21 && finalDealerScore !== 21) {
-            this.status = 'blackjack';
-            payout = this.currentBet * 2.5; // 3:2 賠率 (本金 1 + 獲利 1.5 = 回收 2.5)
-            this.message = 'BLACKJACK!';
         }
 
         return { payout };
