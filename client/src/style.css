@@ -5,7 +5,7 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
+  color-scheme: dark;
   color: rgba(255, 255, 255, 0.87);
   background-color: #242424;
 
@@ -64,4 +64,13 @@ body {
 
 .animate-card-flip {
   animation: card-flip 0.4s ease-out forwards;
+}
+/* Google Button Fixes */
+#google-login-btn {
+  color-scheme: dark;
+}
+#google-login-btn iframe {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 9999px !important; /* Match pill shape */
 }
