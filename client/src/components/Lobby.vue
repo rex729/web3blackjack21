@@ -60,11 +60,50 @@ onMounted(() => {
 
 // 處理點擊關卡
 const handleLevelClick = (level: any) => {
+    // 如果正在拖曳，不要觸發點擊事件
+    if (isDragging.value) return;
+
     if (level.locked) return;
     
     const success = lobbyStore.enterLevel(level.id);
     if (!success) {
         alert("餘額不足 (Insufficient Funds)");
+    }
+};
+
+// --- 滑鼠拖曳滾動 (Drag to Scroll) ---
+const scrollContainer = ref<HTMLElement | null>(null);
+const isDown = ref(false);
+const isDragging = ref(false); // 用來區分是「點擊」還是「拖曳」
+const startX = ref(0);
+const scrollLeft = ref(0);
+
+const startDragging = (e: MouseEvent) => {
+    isDown.value = true;
+    isDragging.value = false; // 按下時先假設不是拖曳
+    if (!scrollContainer.value) return;
+    startX.value = e.pageX - scrollContainer.value.offsetLeft;
+    scrollLeft.value = scrollContainer.value.scrollLeft;
+};
+
+const stopDragging = () => {
+    isDown.value = false;
+    // 稍微延遲重置拖曳狀態，避免 mouseup 後立即觸發 click
+    setTimeout(() => {
+        isDragging.value = false;
+    }, 50);
+};
+
+const onDrag = (e: MouseEvent) => {
+    if (!isDown.value || !scrollContainer.value) return;
+    e.preventDefault();
+    const x = e.pageX - scrollContainer.value.offsetLeft;
+    const walk = (x - startX.value) * 2; // 調整滾動速度 (x2)
+    scrollContainer.value.scrollLeft = scrollLeft.value - walk;
+    
+    // 如果移動距離超過一定閾值，標記為拖曳中 (防止誤觸點擊)
+    if (Math.abs(walk) > 5) {
+        isDragging.value = true;
     }
 };
 </script>
@@ -114,19 +153,28 @@ const handleLevelClick = (level: any) => {
             </div>
         </div>
 
+
         <!-- 內容區域：世界巡迴地圖 -->
-        <div class="flex-1 overflow-x-auto overflow-y-hidden relative z-10 scrollbar-hide">
+        <div 
+            ref="scrollContainer"
+            class="flex-1 overflow-x-auto overflow-y-hidden relative z-10 scrollbar-hide cursor-grab active:cursor-grabbing select-none"
+            @mousedown="startDragging"
+            @mouseleave="stopDragging"
+            @mouseup="stopDragging"
+            @mousemove="onDrag"
+        >
             
             <!-- 背景裝飾 -->
             <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-800/20 via-black to-black pointer-events-none"></div>
 
-            <div class="h-full flex items-center px-12 gap-8 w-max min-w-full">
+            <!-- 加上 flex-nowrap 確保不換行 -->
+            <div class="h-full flex flex-nowrap items-center px-12 gap-8 w-max min-w-full">
                 
                 <!-- 關卡卡片 -->
                 <div v-for="level in lobbyStore.levels" :key="level.id" 
                     @click="handleLevelClick(level)"
+                    class="relative shrink-0 w-[300px] h-[420px] rounded-3xl transition-all duration-300 transform hover:-translate-y-4 hover:shadow-2xl cursor-pointer flex flex-col group overflow-hidden border"
                     :class="[
-                        'relative w-[300px] h-[420px] rounded-3xl transition-all duration-300 transform hover:-translate-y-4 hover:shadow-2xl cursor-pointer flex flex-col group overflow-hidden border',
                         level.locked 
                             ? 'bg-zinc-900 border-zinc-800 opacity-60 grayscale hover:grayscale-0' 
                             : `bg-gradient-to-br ${level.color} border-white/20 shadow-lg shadow-${level.color.split('-')[1]}-500/20`
