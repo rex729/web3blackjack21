@@ -80,17 +80,8 @@ const showDealerScore = () => {
               label="DEALER" 
               :score="showDealerScore() ? store.dealerScore : undefined" 
             />
-            <div class="text-white/30 font-black uppercase tracking-[0.2em] text-sm mt-2">
-              Dealer Must Draw to 16, Stand on 17
-            </div>
         </div>
 
-        <!-- Center Info / Logo -->
-        <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
-            <div class="text-9xl font-black tracking-tighter text-black rotate-[-10deg] select-none text-center">
-                CRYPTO<br />21
-            </div>
-        </div>
 
         <!-- Player Area -->
         <div class="flex flex-col items-center gap-8 w-full">
@@ -104,6 +95,18 @@ const showDealerScore = () => {
             <ControlsComp />
         </div>
 
+    </div>
+
+    <!-- Game Rules -->
+    <div class="absolute bottom-16 left-6 z-0 text-white/20 font-black uppercase tracking-[0.2em] text-[10px]">
+        Dealer Must Draw to 16, Stand on 17
+    </div>
+
+    <!-- Watermark -->
+    <div class="absolute bottom-8 right-8 pointer-events-none opacity-10 z-0">
+        <div class="text-6xl font-black tracking-tighter text-black rotate-[-10deg] select-none text-right">
+            CRYPTO<br />21
+        </div>
     </div>
 
     <!-- Footer Info: Email in bottom right -->
