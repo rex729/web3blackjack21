@@ -2,7 +2,7 @@
 import { onMounted, ref, watch } from 'vue';
 import { useAuthStore } from '../store/auth';
 import { useLobbyStore } from '../store/lobby';
-import { Trophy, Globe, ShoppingCart, Gift, UserCircle, Hexagon, Lock, MapPin } from 'lucide-vue-next';
+import { Trophy, Globe, UserCircle, Hexagon, Lock, MapPin, Gift } from 'lucide-vue-next';
 import LeaderboardModal from './LeaderboardModal.vue';
 
 const authStore = useAuthStore();
@@ -241,11 +241,14 @@ const onDrag = (e: MouseEvent) => {
 
         <!-- 底部導航欄 (Bottom Navigation) -->
         <div class="h-24 bg-zinc-950 border-t border-white/10 flex justify-center items-center gap-12 z-20 pb-4">
-            <button class="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors group">
+
+            <button class="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors group relative">
                 <div class="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center group-hover:bg-zinc-800 group-hover:border-white/10 transition-all">
-                    <ShoppingCart class="w-5 h-5" />
+                    <Gift class="w-5 h-5" />
                 </div>
-                <span class="text-[10px] font-bold uppercase tracking-wider">Shop</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider">Daily</span>
+                <!-- Notification Dot (可以預設亮起，或綁定狀態) -->
+                <span class="absolute top-0 right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-black"></span>
             </button>
 
             <button class="flex flex-col items-center gap-1 text-white group scale-110">
@@ -255,14 +258,6 @@ const onDrag = (e: MouseEvent) => {
                 <span class="text-[10px] font-bold uppercase tracking-wider text-blue-400">Play</span>
             </button>
 
-             <button class="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors group relative">
-                <div class="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center group-hover:bg-zinc-800 group-hover:border-white/10 transition-all">
-                    <Gift class="w-5 h-5" />
-                </div>
-                <span class="text-[10px] font-bold uppercase tracking-wider">Boxes</span>
-                <!-- Notification Dot -->
-                <span class="absolute top-0 right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-black"></span>
-            </button>
 
             <button 
                 @click="showLeaderboard = true"
