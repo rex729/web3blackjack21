@@ -2,10 +2,13 @@
 import { onMounted, ref, watch } from 'vue';
 import { useAuthStore } from '../store/auth';
 import { useLobbyStore } from '../store/lobby';
-import { Trophy, Globe, ShoppingCart, Gift, UserCircle, Hexagon, Lock, MapPin } from 'lucide-vue-next';
+import { Trophy, Globe, ShoppingCart, Gift, UserCircle, Hexagon, Lock } from 'lucide-vue-next';
+import LeaderboardModal from './LeaderboardModal.vue';
 
 const authStore = useAuthStore();
 const lobbyStore = useLobbyStore();
+
+const showLeaderboard = ref(false);
 
 // 顯示用的餘額 (用於數字滾動動畫)
 const displayedBalance = ref(authStore.user?.balance ?? 0);
@@ -16,6 +19,13 @@ watch(() => authStore.user?.balance, (newVal, oldVal) => {
     if (newVal === undefined) return;
     if (oldVal === undefined) {
         displayedBalance.value = newVal;
+        return;
+    }
+
+    // 當數值「完全沒有變」（例如輸了或打平），強制依然跳動一次
+    if (newVal === oldVal && oldVal !== undefined) {
+        isBalanceAnimating.value = true;
+        setTimeout(() => { isBalanceAnimating.value = false; }, 300);
         return;
     }
 
@@ -44,17 +54,23 @@ watch(() => authStore.user?.balance, (newVal, oldVal) => {
 
 // 每次進入大廳時，設定 7秒延遲抓取最新餘額
 // 這是為了配合後端的 "5秒 Auto-Stand" 機制
-onMounted(() => {
+onMounted(async () => {
+    // 進入大廳時，無論餘額是否變化，先強制跳動一次
+    isBalanceAnimating.value = true;
+    setTimeout(() => { isBalanceAnimating.value = false; }, 300);
+
     // 先立即抓一次 (確保剛登入時資料正確)
     authStore.initialize(); 
+    
+    // 抓取關卡資訊
+    await lobbyStore.fetchLevels();
 
     // 再設定延遲更新 (捕捉剛剛可能發生的代理人代打結算)
     setTimeout(async () => {
         console.log("[Lobby] Fetching latest balance after delay...");
         await authStore.initialize();
-        // 強制播放一次彈跳動畫 (即使數值沒變)
-        isBalanceAnimating.value = true;
-        setTimeout(() => { isBalanceAnimating.value = false; }, 300);
+        // 如果這個時候從後端抓到的餘額真的變多了 (例如贏錢)，
+        // 上面的 watch 邏輯會自動觸發真正的跳動動畫，不需要這裡假跳
     }, 7000);
 });
 
@@ -109,35 +125,50 @@ const onDrag = (e: MouseEvent) => {
 </script>
 
 <template>
-    <div class="flex flex-col h-screen w-full bg-black text-white overflow-hidden relative">
+    <div class="flex flex-col h-screen w-full bg-[#022c22] text-white overflow-hidden relative font-sans">
+        <!-- 經典賭場絨布背景 (Classic Casino Felt Background) -->
+        <div class="absolute inset-0 overflow-hidden pointer-events-none">
+            <!-- 森林綠輻射漸層 -->
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_60%,_#064e3b_0%,_#011a13_100%)]"></div>
+            
+            <!-- 絨布紋理疊加 (Felt Texture Overlay) -->
+            <div class="absolute inset-0 opacity-[0.25] bg-[url('https://www.transparenttextures.com/patterns/felt.png')]"></div>
+            
+            <!-- 深度暗角 (Deep Vignette) -->
+            <div class="absolute inset-0 shadow-[inset_0_0_200px_rgba(0,0,0,0.8)]"></div>
+            
+            <!-- 微弱的灰塵/火花粒子感 (Subtle Particles for Atmosphere) -->
+            <div class="absolute inset-0 opacity-[0.1] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]"></div>
+        </div>
         <!-- 頂部資訊欄 (Top Bar) -->
-        <div class="h-20 bg-zinc-900/80 backdrop-blur-md border-b border-white/10 flex items-center justify-between px-6 z-20">
+        <div class="h-20 bg-zinc-900/80 backdrop-blur-md border-b border-white/10 flex items-center justify-between px-6 z-20 overflow-x-auto scrollbar-hide">
             <!-- 左側：使用者資訊 -->
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 flex-shrink-0">
                 <div class="relative group cursor-pointer" @click="authStore.logout()">
                     <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-yellow-400 to-orange-500 p-[2px]">
                         <div class="w-full h-full rounded-full bg-black overflow-hidden flex items-center justify-center">
                              <!-- 如果有頭像則顯示，否則顯示預設圖標 -->
-                             <img v-if="authStore.user?.image" :src="authStore.user.image" class="w-full h-full object-cover">
-                             <UserCircle v-else class="w-8 h-8 text-zinc-400" />
+                        <img v-if="authStore.user?.image" :src="authStore.user.image" class="w-full h-full object-cover" />
+                        <UserCircle v-else class="w-8 h-8 text-zinc-400" />
                         </div>
                     </div>
                     <!-- 等級徽章 -->
                     <div class="absolute -top-1 -right-1 bg-blue-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-black">
-                        LV.12
+                        LV.{{ authStore.currentLevel }}
                     </div>
                 </div>
-                <div class="flex flex-col">
-                    <span class="font-bold text-lg leading-tight">{{ authStore.user?.name || 'Player' }}</span>
+                <div class="flex flex-col w-24">
+                    <span class="font-bold text-lg leading-tight truncate">{{ authStore.user?.name || 'Player' }}</span>
                     <!-- 經驗條 -->
-                    <div class="w-24 h-1.5 bg-zinc-700 rounded-full mt-1 overflow-hidden">
-                        <div class="h-full bg-blue-500 w-[60%]"></div>
+                    <div class="w-20 h-1.5 bg-zinc-700 rounded-full mt-1 mb-1 overflow-hidden relative" :title="`XP: ${authStore.currentLevelProgress} / 1000`">
+                        <div class="h-full bg-blue-500 transition-all duration-500" :style="{ width: `${(authStore.currentLevelProgress / 1000) * 100}%` }"></div>
                     </div>
+                    <span class="text-xs text-zinc-400 font-mono">{{ authStore.currentLevelProgress }}/{{ authStore.nextLevelThreshold }}</span>
                 </div>
             </div>
 
             <!-- 右側：貨幣資訊 -->
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-4 flex-shrink-0">
                 <!-- 籌碼 -->
                 <div class="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-full border border-white/10">
                     <div class="w-6 h-6 rounded-full bg-yellow-500 flex items-center justify-center text-black font-bold text-xs">$</div>
@@ -164,21 +195,19 @@ const onDrag = (e: MouseEvent) => {
             @mousemove="onDrag"
         >
             
-            <!-- 背景裝飾 -->
-            <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-800/20 via-black to-black pointer-events-none"></div>
+
 
             <!-- 加上 flex-nowrap 確保不換行 -->
-            <div class="h-full flex flex-nowrap items-center px-12 gap-8 w-max min-w-full">
+            <div class="h-full flex flex-nowrap items-center px-12 gap-8 w-max min-w-full justify-center">
                 
-                <!-- 關卡卡片 -->
+                <!-- 關卡卡片 (Morandi Solid Flat Style) -->
                 <div v-for="level in lobbyStore.levels" :key="level.id" 
                     @click="handleLevelClick(level)"
-                    class="relative shrink-0 w-[300px] h-[420px] rounded-3xl transition-all duration-300 transform hover:-translate-y-4 hover:shadow-2xl cursor-pointer flex flex-col group overflow-hidden border"
-                    :class="[
-                        level.locked 
-                            ? 'bg-zinc-900 border-zinc-800 opacity-60 grayscale hover:grayscale-0' 
-                            : `bg-gradient-to-br ${level.color} border-white/20 shadow-lg shadow-${level.color.split('-')[1]}-500/20`
-                    ]"
+                    class="relative shrink-0 w-[300px] h-[420px] rounded-3xl transition-all duration-300 transform hover:-translate-y-4 hover:shadow-2xl cursor-pointer flex flex-col group overflow-hidden border-2 border-white/20 shadow-xl"
+                    :style="{ 
+                        backgroundColor: level.color
+                    }"
+                    :class="[level.locked ? 'opacity-60 grayscale' : '']"
                 >
                     <!-- 卡片背景圖 (簡易模擬) -->
                     <div class="absolute top-0 right-0 p-4 opacity-10 text-9xl group-hover:scale-110 transition-transform duration-700">
@@ -189,13 +218,30 @@ const onDrag = (e: MouseEvent) => {
                     <div class="relative z-10 flex flex-col h-full p-6 text-white">
                         <!-- Header -->
                         <div class="flex justify-between items-start mb-4">
-                            <div class="bg-black/30 backdrop-blur px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border border-white/10">
-                                {{ level.type }}
+                            <div class="flex gap-2 flex-wrap">
+                                <!-- Dealer Rule Badge (H17/S17) -->
+                                <div class="px-2 py-1 rounded-full text-[10px] font-black tracking-tighter border italic shrink-0"
+                                    :class="[
+                                        !level.hit17 
+                                            ? 'bg-black/40 text-green-300 border-green-500/30' 
+                                            : 'bg-black/40 text-orange-200 border-orange-500/30'
+                                    ]"
+                                >
+                                    {{ level.hit17 ? 'H17' : 'S17' }}
+                                </div>
+                                <!-- XP Badge -->
+                                <div v-if="level.xpMultiplier && level.xpMultiplier > 1" class="px-2 py-1 rounded-full text-[10px] font-black tracking-tighter border border-white/20 bg-black/40 text-blue-200 italic shrink-0">
+                                    {{ level.xpMultiplier }}x XP
+                                </div>
+                                <!-- 5-Card Charlie Badge -->
+                                <div v-if="level.fiveCardCharlie" class="px-2 py-1 rounded-full text-[10px] font-black tracking-tighter border border-white/20 bg-black/40 text-purple-200 flex items-center gap-1 shrink-0">
+                                    <span>5★</span>
+                                </div>
                             </div>
-                            <MapPin v-if="!level.locked" class="w-5 h-5 text-white/80" />
-                            <Lock v-else class="w-5 h-5 text-white/50" />
+                            <!-- MapPin removed -->
+                            <Lock v-if="level.locked" class="w-5 h-5 text-white/50 shrink-0" />
                         </div>
-
+                        
                         <!-- Title -->
                         <div class="mb-auto">
                             <h2 class="text-3xl font-black italic uppercase leading-none mb-1">{{ level.name }}</h2>
@@ -204,7 +250,7 @@ const onDrag = (e: MouseEvent) => {
 
                         <!-- Stats -->
                         <div class="space-y-3 mb-6">
-                            <div class="flex justify-between items-center border-b border-white/10 pb-2">
+                            <div class="flex justify-between items-center border-b border-white/10 pb-2 relative">
                                 <span class="text-xs uppercase text-white/50 font-bold tracking-wider">Buy In</span>
                                 <span class="text-xl font-bold font-mono" :class="lobbyStore.canEnter(level.id) ? 'text-white' : 'text-red-500'">
                                     {{ typeof level.buyIn === 'number' && level.buyIn > 0 ? '$' + level.buyIn.toLocaleString() : 'FREE' }}
@@ -223,8 +269,9 @@ const onDrag = (e: MouseEvent) => {
                                 lobbyStore.canEnter(level.id) ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-lg shadow-yellow-500/20' : 'bg-red-900/50 text-red-200 cursor-not-allowed border border-red-500/30'
                             ]"
                         >
-                            <span v-if="level.locked">Locked</span>
-                            <span v-else-if="!lobbyStore.canEnter(level.id)">No Funds</span>
+                            <span v-if="level.locked">Coming Soon</span>
+                            <span v-else-if="level.minLevel && authStore.currentLevel < level.minLevel">Requres LV.{{ level.minLevel }}</span>
+                            <span v-else-if="(authStore.user?.balance ?? 0) < level.buyIn">Need {{ level.buyIn > 0 ? '$' + level.buyIn.toLocaleString() : 'Free' }}</span>
                             <span v-else>Play Now</span>
                         </button>
                     </div>
@@ -261,13 +308,19 @@ const onDrag = (e: MouseEvent) => {
                 <span class="absolute top-0 right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-black"></span>
             </button>
 
-            <button class="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors group">
+            <button 
+                @click="showLeaderboard = true"
+                class="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors group"
+            >
                 <div class="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center group-hover:bg-zinc-800 group-hover:border-white/10 transition-all">
                     <Trophy class="w-5 h-5" />
                 </div>
-                <span class="text-[10px] font-bold uppercase tracking-wider">League</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider">Rank</span>
             </button>
         </div>
+
+        <!-- Leaderboard Modal -->
+        <LeaderboardModal :is-open="showLeaderboard" @close="showLeaderboard = false" />
     </div>
 </template>
 

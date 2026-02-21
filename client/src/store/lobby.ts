@@ -1,12 +1,30 @@
-
 import { defineStore } from 'pinia';
-import { LEVELS, LevelConfig } from '@/config/levels';
 import { useAuthStore } from './auth';
 import { useGameStore } from './game';
 
+export interface LevelConfig {
+    id: string;
+    name: string;
+    subtitle: string;
+    buyIn: number;
+    prize: string;
+    color: string;
+    image: string;
+    features: string[];
+    minLevel: number;
+    hit17: boolean;
+    sideBets: boolean;
+    allowedChips: number[];
+    surrenderAllowed: boolean;
+    fiveCardCharlie: boolean;
+    xpMultiplier: number;
+    locked?: boolean;
+}
+
 export const useLobbyStore = defineStore('lobby', {
     state: () => ({
-        levels: LEVELS as LevelConfig[]
+        levels: [] as LevelConfig[],
+        loading: false
     }),
 
     getters: {
@@ -17,17 +35,37 @@ export const useLobbyStore = defineStore('lobby', {
                 const level = state.levels.find(l => l.id === levelId);
 
                 if (!level) return false;
-                // 若關卡鎖定，直接回傳 false
-                if (level.locked) return false;
 
                 // 檢查餘額是否足夠入場
                 const userBalance = authStore.user?.balance ?? 0;
-                return userBalance >= level.buyIn;
+                if (userBalance < level.buyIn) return false;
+
+                // 檢查等級要求
+                const userLevel = authStore.currentLevel;
+                if (level.minLevel && userLevel < level.minLevel) return false;
+
+                return true;
             };
         }
     },
 
     actions: {
+        /** 從後端 API 取得關卡資訊 */
+        async fetchLevels() {
+            this.loading = true;
+            try {
+                const response = await fetch('/api/game/levels');
+                const result = await response.json();
+                if (result.success) {
+                    this.levels = result.data;
+                }
+            } catch (error) {
+                console.error('Failed to fetch levels:', error);
+            } finally {
+                this.loading = false;
+            }
+        },
+
         /**
          * 嘗試進入關卡
          * @returns boolean 是否成功進入
@@ -36,21 +74,13 @@ export const useLobbyStore = defineStore('lobby', {
             const level = this.levels.find(l => l.id === levelId);
             if (!level) return false;
 
-            if (level.locked) return false;
-
-            // 使用 getter 的邏輯進行檢查 (不過 getter 需傳參數，這裡直接重寫或調用 getter 稍微麻煩，直接檢查即可)
-            const authStore = useAuthStore();
-            const userBalance = authStore.user?.balance ?? 0;
-
-            if (userBalance < level.buyIn) {
-                // 餘額不足
-                return false;
-            }
-
             // 檢查通過，呼叫 GameStore 進行轉場
-            const gameStore = useGameStore();
-            gameStore.joinTable(levelId);
-            return true;
+            if (this.canEnter(levelId)) {
+                const gameStore = useGameStore();
+                gameStore.joinTable(levelId);
+                return true;
+            }
+            return false;
         }
     }
 });

@@ -14,6 +14,10 @@ export interface User {
     image: string;
     /** 目前餘額 */
     balance: number;
+    /** 目前等級 (Computed) */
+    level?: number;
+    /** 目前經驗值 (Total) */
+    experience: number;
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -25,6 +29,25 @@ export const useAuthStore = defineStore('auth', {
         loading: false,
         error: null as string | null,
     }),
+
+    getters: {
+        /** 計算當前等級 */
+        currentLevel(state): number {
+            if (!state.user) return 1;
+            const xp = state.user.experience || 0;
+            return Math.floor(xp / 1000) + 1;
+        },
+        /** 計算當前等級經驗值 (進度條用) */
+        currentLevelProgress(state): number {
+            if (!state.user) return 0;
+            const xp = state.user.experience || 0;
+            return xp % 1000;
+        },
+        /** 下一級所需經驗值 */
+        nextLevelThreshold(): number {
+            return 1000;
+        }
+    },
 
     actions: {
 
@@ -86,6 +109,15 @@ export const useAuthStore = defineStore('auth', {
             } catch (err) {
                 console.error('Failed to sync balance', err);
             }
+        },
+
+
+        handleUserUpdate(data: { level: number, experience: number }) {
+            if (!this.user) return;
+            // 雖然 data.level 是後端算的，但前端也有 getter 自動算
+            // 我們主要更新 experience 即可，getter 會自動反應
+            this.user.experience = data.experience;
+            console.log(`[Auth] User XP updated: ${data.experience} (Lv.${this.currentLevel})`);
         },
 
         logout() {

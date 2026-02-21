@@ -4,7 +4,7 @@ import { useGameStore } from '@/store/game';
 import { useAuthStore } from '@/store/auth';
 import HandComp from './Hand.vue';
 import ControlsComp from './Controls.vue';
-import { Wallet, RefreshCw, Coins } from 'lucide-vue-next';
+import { Wallet, RefreshCw, Coins, LogOut } from 'lucide-vue-next';
 
 const store = useGameStore();
 const authStore = useAuthStore();
@@ -23,58 +23,59 @@ const showDealerScore = () => {
 </script>
 
 <template>
-  <div class="relative w-full h-screen bg-emerald-900 overflow-hidden flex flex-col font-sans">
-    <!-- Green Felt Texture Overlay -->
-    <div class="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/felt.png')] pointer-events-none" />
+  <div class="fixed inset-0 w-full h-[100dvh] bg-[#064e3b] overflow-y-auto flex flex-col font-sans scroll-smooth">
+    <!-- 高級桌布漸層與質感 (Premium Felt & Spotlight) -->
+    <div class="fixed inset-0 bg-[radial-gradient(circle_at_50%_60%,_#065f46_0%,_#022c22_100%)] pointer-events-none"></div>
+    <div class="fixed inset-0 opacity-30 bg-[url('https://www.transparenttextures.com/patterns/felt.png')] pointer-events-none" />
+    
+    <!-- 桌邊光澤 (Table Edge Subtle Glow) -->
+    <div class="fixed inset-0 shadow-[inset_0_0_150px_rgba(0,0,0,0.8)] pointer-events-none"></div>
 
     <!-- HUD -->
-    <div class="relative z-10 flex justify-between items-center p-6 w-full">
-        <!-- Left Side: Live Indicator & Bet -->
-        <div class="flex items-center gap-4">
-            <div class="flex items-center gap-2 bg-black/40 px-6 py-3 rounded-full text-white backdrop-blur-md border border-white/10 h-[52px]">
-                <div class="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-                <span class="font-mono text-xs tracking-widest uppercase text-white/50 italic font-bold">LIVE</span>
+    <div class="sticky top-0 z-40 bg-black/30 backdrop-blur-md border-b border-white/10 flex items-center px-4 py-6 md:py-4 w-full overflow-x-auto overflow-y-hidden scrollbar-hide" style="touch-action: pan-x;">
+        <div class="flex justify-between items-center w-full gap-3">
+            <!-- Left Side: Live Indicator & Bet -->
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <div class="flex items-center gap-2 md:gap-3 bg-black/40 px-4 md:px-8 py-2 rounded-full text-white backdrop-blur-md border border-white/10 h-10 md:h-[52px]">
+                    <div class="w-2.5 h-2.5 md:w-3 md:h-3 bg-red-500 rounded-full animate-pulse" />
+                    <span class="font-mono text-xs md:text-sm tracking-widest uppercase text-white/50 italic font-bold">LIVE</span>
+                </div>
+
+                <!-- Current Bet Display -->
+                <div v-if="store.currentBet > 0" class="flex items-center justify-center gap-2 bg-black/40 px-4 py-2 rounded-full text-white backdrop-blur-md border border-white/10 h-10 md:h-[52px] min-w-[80px] md:min-w-[110px]">
+                    <Coins class="w-3 h-3 text-yellow-500" />
+                    <span class="font-mono text-xs tracking-widest uppercase text-white/50 font-bold">${{ store.currentBet }}</span>
+                </div>
             </div>
 
-            <!-- Current Bet Display -->
-            <div v-if="store.currentBet > 0" class="flex items-center gap-2 bg-black/40 px-6 py-3 rounded-full text-white backdrop-blur-md border border-white/10 h-[52px]">
-                <Coins class="w-4 h-4 text-yellow-500" />
-                <span class="font-mono text-xs tracking-widest uppercase text-white/50 font-bold">BET: ${{ store.currentBet }}</span>
+            <!-- Right Side: Balance & Avatar -->
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <button 
+                @click="handleRefresh"
+                class="p-2 rounded-full bg-black/40 text-white/50 hover:text-white hover:bg-black/60 transition-all border border-white/10 flex items-center justify-center group h-10 w-10 md:h-[52px] md:w-[52px]"
+              >
+                <RefreshCw class="w-4 h-4" :class="{ 'rotate-[360deg]': isRefreshing }" />
+              </button>
+
+              <div class="flex items-center gap-2 bg-black/80 px-4 py-2 rounded-full text-yellow-500 font-black text-sm md:text-xl border border-yellow-500/50 shadow-lg h-10 md:h-[52px]">
+                  <Wallet class="w-4 h-4" />
+                  ${{ authStore.user?.balance ?? 0 }}
+              </div>
+              <div 
+                @click="showExitModal = true"
+                class="w-10 h-10 md:w-[46.8px] md:h-[46.8px] rounded-full border-2 border-yellow-500/50 overflow-hidden shadow-lg shadow-yellow-500/20 bg-black cursor-pointer hover:border-red-500 transition-colors"
+              >
+                  <img :src="authStore.user?.image" alt="Avatar" class="w-full h-full object-cover" />
+              </div>
             </div>
-        </div>
-
-        <!-- Right Side: Balance & Avatar -->
-        <div class="flex items-center gap-4">
-          <button 
-            @click="handleRefresh"
-            class="p-3 rounded-full bg-black/40 text-white/50 hover:text-white hover:bg-black/60 transition-all border border-white/10 flex items-center justify-center group h-[52px] w-[52px]"
-            title="Refresh Balance"
-          >
-            <RefreshCw 
-              class="w-5 h-5 transition-transform duration-700 ease-in-out" 
-              :class="{ 'rotate-[360deg]': isRefreshing }"
-            />
-          </button>
-
-          <div class="flex items-center gap-2 bg-black/80 px-6 py-3 rounded-full text-yellow-500 font-black text-xl border border-yellow-500/50 shadow-lg h-[52px]">
-              <Wallet class="w-5 h-5" />
-              ${{ authStore.user?.balance ?? 0 }}
-          </div>
-          <div 
-            @click="showExitModal = true"
-            class="w-[46.8px] h-[46.8px] rounded-full border-2 border-yellow-500/50 overflow-hidden shadow-lg shadow-yellow-500/20 bg-black cursor-pointer hover:border-red-500 transition-colors"
-            title="Exit to Lobby"
-          >
-              <img :src="authStore.user?.image" alt="Avatar" class="w-full h-full object-cover" />
-          </div>
         </div>
     </div>
 
     <!-- Game Area -->
-    <div class="relative z-10 flex-1 flex flex-col items-center justify-between py-12 pb-24 max-w-5xl mx-auto w-full">
+    <div class="relative z-10 flex-1 flex flex-col items-center justify-start gap-4 md:gap-12 py-4 md:py-12 pb-32 md:pb-24 max-w-5xl mx-auto w-full">
 
         <!-- Dealer Area -->
-        <div class="flex flex-col items-center gap-4">
+        <div class="flex flex-col items-center gap-2 md:gap-4 shrink-0 scale-90 md:scale-100 mt-16 md:mt-24">
             <HandComp 
               :cards="store.dealerHand" 
               label="DEALER" 
@@ -84,22 +85,32 @@ const showDealerScore = () => {
 
 
         <!-- Player Area -->
-        <div class="flex flex-col items-center gap-8 w-full">
-            <HandComp 
-              :cards="store.playerHand" 
-              label="PLAYER" 
-              :score="store.playerHand.length > 0 ? store.playerScore : undefined" 
-            />
+        <div class="flex-1 flex flex-col items-center justify-center gap-2 md:gap-8 w-full overflow-visible">
+            <div class="shrink-0 scale-90 md:scale-100 mb-2 md:mb-0">
+                <HandComp 
+                  :cards="store.playerHand" 
+                  label="PLAYER" 
+                  :score="store.playerHand.length > 0 ? store.playerScore : undefined" 
+                />
+            </div>
 
-            <!-- Controls -->
-            <ControlsComp />
+            <!-- Controls (這個組件內容很多，需要內部適配) -->
+            <ControlsComp class="z-20 w-full" />
         </div>
 
     </div>
 
-    <!-- Game Rules -->
-    <div class="absolute bottom-16 left-6 z-0 text-white/20 font-black uppercase tracking-[0.2em] text-[10px]">
-        Dealer Must Draw to 16, Stand on 17
+    <!-- Level Info & Game Rules (極小螢幕隱藏) -->
+    <div class="absolute bottom-16 left-6 z-0 hidden lg:flex flex-col gap-1">
+        <div class="text-white/20 font-mono text-[10px] uppercase tracking-widest">
+            STATE: {{ store.status }}
+        </div>
+        <div class="text-white/60 font-black uppercase tracking-[0.2em] text-sm">
+            {{ store.currentLevelName }}
+        </div>
+        <div class="text-white/20 font-black uppercase tracking-[0.2em] text-[10px]">
+            Dealer Must Draw to 16, {{ store.isHit17 ? 'Hits Soft 17' : 'Stands on All 17s' }}
+        </div>
     </div>
 
     <!-- Watermark -->
@@ -110,7 +121,7 @@ const showDealerScore = () => {
     </div>
 
     <!-- Footer Info: Email in bottom right -->
-    <div class="absolute bottom-4 right-6 z-20 flex flex-col items-end opacity-40 hover:opacity-100 transition-opacity">
+    <div class="absolute bottom-4 right-6 z-20 hidden md:flex flex-col items-end opacity-40 hover:opacity-100 transition-opacity">
         <span class="text-[10px] font-mono text-white/50 tracking-tighter uppercase mb-1">Authenticated Account</span>
         <span class="text-xs font-bold text-white tracking-widest">{{ authStore.user?.email }}</span>
     </div>
@@ -119,9 +130,11 @@ const showDealerScore = () => {
     <div class="absolute bottom-4 left-6 z-20">
         <button 
             @click="showExitModal = true"
-            class="px-4 py-2 bg-red-900/50 hover:bg-red-800 text-red-200 border border-red-500/30 rounded-lg text-xs font-bold uppercase tracking-widest transition-all backdrop-blur-sm"
+            class="px-3 py-3 md:px-4 md:py-2 bg-red-900/50 hover:bg-red-800 text-red-200 border border-red-500/30 rounded-lg md:rounded-lg rounded-full text-xs font-bold uppercase tracking-widest transition-all backdrop-blur-sm flex items-center justify-center shadow-lg"
+            title="Exit Table"
         >
-            Exit Table
+            <span class="hidden md:inline">Exit Table</span>
+            <LogOut class="w-5 h-5 md:hidden" />
         </button>
     </div>
 

@@ -1,4 +1,5 @@
 import prisma from '../db';
+import { calculateLevel } from '../utils/levelSystem';
 
 export class UserService {
     /**
@@ -21,8 +22,8 @@ export class UserService {
                     email,
                     password, // 測試階段密碼僅明文儲存，正式上線應加密
                     name: name || email.split('@')[0],
-                    image: image || avatarPath,
-                    balance: 10000 // 初始贈送餘額
+                    image: image || avatarPath
+                    // balance: 10000 // 初始贈送餘額 (已改由 Schema 預設值處理)
                 }
             });
             console.log(`[UserService] New user registered: ${email}`);
@@ -56,5 +57,75 @@ export class UserService {
         return prisma.user.findUnique({
             where: { id: userId }
         });
+    }
+
+    /**
+     * 增加使用者經驗值 (累積制)
+     * @param userId 使用者 ID
+     * @param amount 獲得的經驗值
+     */
+    static async addExperience(userId: string, amount: number) {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) return null;
+
+        const oldLevelInfo = calculateLevel(user.experience);
+        const newExperience = user.experience + amount;
+        const newLevelInfo = calculateLevel(newExperience);
+
+        const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: { experience: newExperience }
+        });
+
+        if (newLevelInfo.level > oldLevelInfo.level) {
+            console.log(`[UserService] User ${user.email} leveled up: Lv.${oldLevelInfo.level} -> Lv.${newLevelInfo.level}!`);
+        }
+
+        return updatedUser;
+    }
+
+    // 簡單的記憶體快取 (In-Memory Cache)
+    // 結構: { 'balance': { data: [...], expiry: 123456789 }, 'experience': { ... } }
+    static cache: Record<string, { data: any[], expiry: number }> = {};
+    static cacheTTL = 5000; // 快取時效 5秒 (5000ms)
+
+    /**
+     * 取得排行榜資料 (含快取機制)
+     * @param type 排序依據: 'balance' (財富榜) | 'experience' (等級榜)
+     * @param limit 取前幾名 (預設 50)
+     */
+    static async getLeaderboard(type: 'balance' | 'experience', limit: number = 50) {
+        const now = Date.now();
+        const cached = this.cache[type];
+
+        // 1. 檢查快取是否有效
+        if (cached && now < cached.expiry) {
+            console.log(`[UserService] Leaderboard Cache HIT (${type})`);
+            return cached.data;
+        }
+
+        // 2. 快取失效或不存在，查詢資料庫
+        console.log(`[UserService] Leaderboard DB Query (${type})`);
+        const data = await prisma.user.findMany({
+            orderBy: {
+                [type]: 'desc'
+            },
+            take: limit,
+            select: {
+                id: true,
+                name: true,
+                image: true,
+                balance: true,
+                experience: true
+            }
+        });
+
+        // 3. 更新快取
+        this.cache[type] = {
+            data: data,
+            expiry: now + this.cacheTTL
+        };
+
+        return data;
     }
 }

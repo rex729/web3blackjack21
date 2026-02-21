@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia';
 import { useAuthStore } from './auth';
 import { io, Socket } from 'socket.io-client';
+import { useLobbyStore } from './lobby';
 
 export type Suit = 'spades' | 'hearts' | 'diamonds' | 'clubs';
 export type CardValue = '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A';
@@ -12,7 +13,7 @@ export interface Card {
     hidden?: boolean;
 }
 
-export type GameStatus = 'idle' | 'betting' | 'playing' | 'dealerTurn' | 'won' | 'lost' | 'push' | 'blackjack';
+export type GameStatus = 'idle' | 'betting' | 'playing' | 'dealerTurn' | 'won' | 'lost' | 'push' | 'blackjack' | 'surrender';
 
 /** 遊戲狀態資料介面 (Server 回傳) */
 interface GameStatePayload {
@@ -23,6 +24,8 @@ interface GameStatePayload {
     status: GameStatus;
     currentBet: number;
     message: string;
+    levelId?: string;
+    sideBetResult?: { payout: number, message: string };
 }
 
 export const useGameStore = defineStore('game', {
@@ -38,6 +41,21 @@ export const useGameStore = defineStore('game', {
 
         /** 目前選擇的桌子 ID，若為 null 代表在大廳 */
         currentTableId: null as string | null,
+
+        /** 邊注金額 */
+        sideBets: {
+            perfectPairs: 0,
+            twentyOnePlusThree: 0
+        } as Record<string, number>,
+
+        /** 邊注結果 */
+        sideBetResult: null as { payout: number, message: string } | null,
+
+        /** 正在執行的 setTimeout IDs，用於清除競態條件下的延遲任務 */
+        _timeoutIds: [] as number[],
+
+        /** 伺服器 Pod 名稱 (偵偵用) */
+        serverPodName: null as string | null,
     }),
 
     getters: {
@@ -45,6 +63,47 @@ export const useGameStore = defineStore('game', {
         balance: () => {
             const authStore = useAuthStore();
             return authStore.user?.balance ?? 0;
+        },
+        /** 取得目前關卡名稱 */
+        currentLevelName: (state) => {
+            const lobbyStore = useLobbyStore();
+            const level = lobbyStore.levels.find(l => l.id === state.currentTableId);
+            return level ? level.name : '';
+        },
+        /** 取得目前關卡允許的籌碼面額 */
+        currentChips: (state) => {
+            const lobbyStore = useLobbyStore();
+            const level = lobbyStore.levels.find(l => l.id === state.currentTableId);
+            return level?.allowedChips || [5, 25, 100, 500, 1000]; // 預設值
+        },
+        /** 是否可以加倍 (僅首兩張牌且餘額足夠且非 21 點，且非 Level 1) */
+        canDouble: (state) => {
+            const authStore = useAuthStore();
+            const balance = authStore.user?.balance ?? 0;
+            // 禁止在 Level 1 或 Blackjack (21點) 時加倍
+            return state.currentTableId !== 'level-1' && state.playerHand.length === 2 && balance >= state.currentBet && state.playerScore !== 21;
+        },
+        /** 是否可以投降 (僅首兩張牌且 Level 規則允許) */
+        canSurrender: (state) => {
+            const lobbyStore = useLobbyStore();
+            const level = lobbyStore.levels.find(l => l.id === state.currentTableId);
+            return state.status === 'playing' && state.playerHand.length === 2 && !!level?.surrenderAllowed;
+        },
+        /** 是否啟用邊注 (Level 規則允許) */
+        isSideBetsEnabled: (state) => {
+            const lobbyStore = useLobbyStore();
+            const level = lobbyStore.levels.find(l => l.id === state.currentTableId);
+            return !!level?.sideBets;
+        },
+        /** 是否為 H17 規則 (莊家 17 點是否繼續要牌) */
+        isHit17: (state) => {
+            const lobbyStore = useLobbyStore();
+            const level = lobbyStore.levels.find(l => l.id === state.currentTableId);
+            return level ? level.hit17 : true;
+        },
+        /** 計算目前總下注額 (主注 + 邊注) */
+        totalBet: (state) => {
+            return state.currentBet + (state.sideBets.perfectPairs || 0) + (state.sideBets.twentyOnePlusThree || 0);
         }
     },
 
@@ -65,10 +124,16 @@ export const useGameStore = defineStore('game', {
          * 離開桌子回到大廳
          */
         leaveTable() {
+            // 通知後端移除遊戲實例，避免 10 秒內重連又被抓回牌局
+            if (this.socket) {
+                this.socket.emit('leaveTable');
+            }
             this.currentTableId = null;
             this.resetLocalState();
-            // 離開桌子時斷線
-            this.disconnectSocket();
+            // 延遲一點點斷線，確保 emit 送出
+            setTimeout(() => {
+                this.disconnectSocket();
+            }, 100);
         },
 
         /**
@@ -126,6 +191,11 @@ export const useGameStore = defineStore('game', {
             this.dealerScore = 0;
             this.status = 'idle';
             this.currentBet = 0;
+            this.sideBets = {
+                perfectPairs: 0,
+                twentyOnePlusThree: 0
+            };
+            this.sideBetResult = null;
         },
 
         /**
@@ -136,6 +206,17 @@ export const useGameStore = defineStore('game', {
 
             this.socket.on('connect', () => {
                 this.message = 'Connected to server.';
+                // 同步目前選擇的關卡 ID 到後端
+                if (this.currentTableId) {
+                    console.log(`[Game] Joining level: ${this.currentTableId}`);
+                    this.socket?.emit('joinLevel', { levelId: this.currentTableId });
+                }
+            });
+
+            // 接收伺服器資訊 (Pod Name)
+            this.socket.on('serverInfo', (data: { podName: string }) => {
+                this.serverPodName = data.podName;
+                console.log(`[Game] Connected to Pod: ${data.podName}`);
             });
 
             this.socket.on('disconnect', () => {
@@ -152,8 +233,22 @@ export const useGameStore = defineStore('game', {
                 this.handleBalanceUpdate(data.balance);
             });
 
-            this.socket.on('error', (data: { message: string }) => {
+            // 處理使用者升級/經驗值更新
+            this.socket.on('userUpdate', (data: { level: number, experience: number }) => {
+                const authStore = useAuthStore();
+                authStore.handleUserUpdate(data);
+            });
+
+            this.socket.on('error', (data: { message: string, code?: string }) => {
                 this.message = `Error: ${data.message}`;
+
+                // 如果是因為重複登入被踢出，執行強制登出邏輯
+                if (data.code === 'MULTIPLE_LOGIN') {
+                    alert(data.message);
+                    this.fullLogout();
+                    const authStore = useAuthStore();
+                    authStore.logout();
+                }
             });
         },
 
@@ -162,49 +257,94 @@ export const useGameStore = defineStore('game', {
          * @param state 新的遊戲狀態
          */
         handleGameStateUpdate(state: GameStatePayload) {
-            // 1. 總是先更新手牌資料，讓前端元件 (Vue) 可以先渲染出牌
+            this._clearAllTimeouts();
+
             const oldPlayerHandCount = this.playerHand.length;
             const oldDealerHandCount = this.dealerHand.length;
 
-            this.playerHand = state.playerHand;
-            this.dealerHand = state.dealerHand;
+            // 這樣才能在後面計算出新舊差異
             this.currentBet = state.currentBet;
+            this.sideBetResult = state.sideBetResult || null;
 
-            // 2. 判斷情境：
             // Case A: 新局開始 (從 Betting/Idle -> Playing) -> 需立即切換 UI 顯示 Board
-            // Case B: 斷線重連 (因為 initializeSocket 會先重置為 Idle，所以這裡也會判定為 True) -> 需立即恢復 Board
             const isGameStart = (this.status === 'betting' || this.status === 'idle') && state.status === 'playing';
 
-            // Case C: 遊戲中途加牌 -> 需播放發牌動畫 (延遲顯示分數)
+            // Case B: 遊戲中途加牌 -> 需播放發牌動畫 (延遲顯示分數)
             const hasNewCards = (this.playerHand.length > oldPlayerHandCount) ||
-                (this.dealerHand.length > oldDealerHandCount);
+                (state.dealerHand.length > oldDealerHandCount);
 
             if (isGameStart) {
                 // [新局/重連] 立即更新狀態以顯示遊戲面板
                 this.status = state.status;
                 this.message = state.message;
+                this.dealerHand = state.dealerHand;
+                this.playerHand = state.playerHand;
 
                 // 稍微延遲顯示分數，讓畫面有一點「載入/發牌」的節奏感
-                setTimeout(() => {
+                this._setTimeout(() => {
                     this.updateScores(state.playerScore, state.dealerScore);
                 }, 600);
             } else if (hasNewCards) {
-                // [加牌] 維持原有的動畫延遲邏輯
-                // 階段一：動畫進行到約 3/4 時 (600ms)，更新點數
-                setTimeout(() => {
-                    this.updateScores(state.playerScore, state.dealerScore);
-                }, 600);
+                this.playerHand = state.playerHand;
 
-                // 階段二：動畫完全結束後 (1000ms)，更新輸贏狀態與訊息
-                setTimeout(() => {
+                // 先恢復成舊的手牌狀態，準備逐張加入
+                const targetDealerHand = state.dealerHand;
+                const newDealerCardsCount = targetDealerHand.length - oldDealerHandCount;
+
+                // 如果莊家有新牌，則重置為舊手牌開始動畫
+                if (newDealerCardsCount > 0) {
+                    this.dealerHand = targetDealerHand.slice(0, oldDealerHandCount);
+                } else {
+                    this.dealerHand = targetDealerHand;
+                }
+
+                const DEAL_INTERVAL = 600; // 每張牌間隔
+                let animationDelay = 0;
+
+                for (let i = 0; i < newDealerCardsCount; i++) {
+                    animationDelay += DEAL_INTERVAL;
+                    this._setTimeout(() => {
+                        // 加入下一張牌
+                        const nextCardIndex = oldDealerHandCount + i;
+                        if (targetDealerHand[nextCardIndex]) {
+                            this.dealerHand.push(targetDealerHand[nextCardIndex]);
+                        }
+                    }, animationDelay);
+                }
+
+                // 總等待時間 = 發牌時間 + 額外一點點緩衝
+                const totalDelay = animationDelay + 800;
+
+                this._setTimeout(() => {
+                    // 確保手牌完全同步 (防止動畫過程中有誤差)
+                    this.dealerHand = targetDealerHand;
+                    this.updateScores(state.playerScore, state.dealerScore);
                     this.status = state.status;
                     this.message = state.message;
-                }, 1000);
+                }, totalDelay);
+
             } else {
-                // [其他] (例如重置、Stand 後的狀態更新)，直接同步無需延遲
+                // [其他] (例如重置、Stand 後、或單純的訊息更新)，直接同步無需延遲
+                this.dealerHand = state.dealerHand;
+                this.playerHand = state.playerHand;
                 this.updateScores(state.playerScore, state.dealerScore);
                 this.status = state.status;
                 this.message = state.message;
+
+                // 每當回到下注或空閒狀態（例如新局開始前），重置邊注金額
+                if (this.status === 'idle' || this.status === 'betting') {
+                    this.sideBets = {
+                        perfectPairs: 0,
+                        twentyOnePlusThree: 0
+                    };
+                    this.sideBetResult = null;
+                }
+            }
+
+            // [同步關卡] 如果伺服器回傳了 levelId，且目前本地桌子 ID 不同（例如重登後），自動修正
+            if (state.levelId && this.currentTableId !== state.levelId) {
+                console.log(`[Game] Re-syncing table view: ${state.levelId}`);
+                this.currentTableId = state.levelId;
             }
         },
 
@@ -214,6 +354,25 @@ export const useGameStore = defineStore('game', {
         updateScores(playerScore: number, dealerScore: number) {
             this.playerScore = playerScore;
             this.dealerScore = dealerScore;
+        },
+
+        /**
+         * 建立受管理的延遲任務 (setTimeout)
+         */
+        _setTimeout(callback: () => void, delay: number) {
+            const id = window.setTimeout(() => {
+                callback();
+                this._timeoutIds = this._timeoutIds.filter(tid => tid !== id);
+            }, delay);
+            this._timeoutIds.push(id);
+        },
+
+        /**
+         * 清除所有擱置中的延遲任務
+         */
+        _clearAllTimeouts() {
+            this._timeoutIds.forEach(id => clearTimeout(id));
+            this._timeoutIds = [];
         },
 
         /**
@@ -234,21 +393,60 @@ export const useGameStore = defineStore('game', {
             const authStore = useAuthStore();
             if (!authStore.user || !this.socket) return;
 
-            if (this.currentBet === 0 || this.currentBet > authStore.user.balance) {
+            const totalSideBet = (this.sideBets.perfectPairs || 0) + (this.sideBets.twentyOnePlusThree || 0);
+            const totalBet = this.currentBet + totalSideBet;
+
+            if (this.currentBet === 0 || totalBet > authStore.user.balance) {
                 this.message = 'Insufficient balance or no bet!';
                 return;
             }
 
             // Server 自動從 Token 判斷 UserId，無需前端傳送
             this.socket.emit('startGame', {
-                bet: this.currentBet
+                bet: this.currentBet,
+                sideBets: this.sideBets
             });
         },
 
         /** 設定下注金額 (本地) */
         placeBet(amount: number) {
+            const authStore = useAuthStore();
+            const balance = authStore.user?.balance ?? 0;
+
+            // 判斷加上這一注後總額是否會爆掉
+            const sideBetTotal = (this.sideBets.perfectPairs || 0) + (this.sideBets.twentyOnePlusThree || 0);
+            if (amount + sideBetTotal > balance) return false;
+
             this.currentBet = amount;
-            this.status = 'betting'; // 本地樂觀更新，Server 會確認最終狀態
+            this.status = 'betting';
+            return true;
+        },
+
+        /** 設定邊注金額 (本地) */
+        placeSideBet(type: string, amount: number) {
+            const authStore = useAuthStore();
+            const balance = authStore.user?.balance ?? 0;
+
+            // 計算假設更新後的總注
+            const otherSideBetKey = type === 'perfectPairs' ? 'twentyOnePlusThree' : 'perfectPairs';
+            const otherSideBet = this.sideBets[otherSideBetKey] || 0;
+            const projectedTotal = this.currentBet + otherSideBet + amount;
+
+            if (projectedTotal > balance) return false;
+
+            this.sideBets[type] = amount;
+            this.status = 'betting';
+            return true;
+        },
+
+        /** 清除所有下注 */
+        clearBets() {
+            this.currentBet = 0;
+            this.sideBets = {
+                perfectPairs: 0,
+                twentyOnePlusThree: 0
+            };
+            this.status = 'idle';
         },
 
         /** 要牌 (Hit) */
@@ -263,6 +461,18 @@ export const useGameStore = defineStore('game', {
             if (!authStore.user || !this.socket) return;
             // Server 自動從 Token 判斷 UserId
             this.socket.emit('stand');
+        },
+
+        /** 加倍下注 (Double) */
+        double() {
+            if (this.status !== 'playing' || !this.socket) return;
+            this.socket.emit('double');
+        },
+
+        /** 投降 (Surrender) */
+        surrender() {
+            if (this.status !== 'playing' || !this.socket) return;
+            this.socket.emit('surrender');
         },
 
         /** 重置遊戲 (回到下注畫面) */
