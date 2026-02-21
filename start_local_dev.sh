@@ -30,9 +30,9 @@ if [ ! -d "node_modules" ]; then
     npm install
 fi
 
-# 初始化/更新本地 SQLite 資料庫 (強制重置)
-echo "🗄️  正在強制重置資料庫 Schema (Prisma)..."
-npx prisma db push --force-reset
+# 初始化/更新資料庫 Schema (Prisma)
+echo "🗄️  正在更新資料庫 Schema (Prisma)..."
+npx prisma db push
 
 # 在背景執行
 npm run dev &

@@ -24,9 +24,10 @@ spec:
         - name: JWT_SECRET
           value: "mock-jwt-secret-for-local-dev-only" # 生產環境請改用 K8s Secrets
         - name: DATABASE_URL
-          value: "file:./dev.db" # 提醒：SQLite 不適合多個 Pods 環境！
-          # 重要：若有多個副本，必須使用 Postgres/MySQL 等集中式資料庫。
-          # 如果在多個 Pod 中使用 SQLite，資料將會遺失或不一致。
+          valueFrom:
+            secretKeyRef:
+              name: blackjack-db-secret
+              key: DATABASE_URL
         # - name: REDIS_HOST
         #   value: "redis-service" # 若稍後啟用 Redis
         resources:

@@ -36,3 +36,6 @@ next-env.d.ts
 # prisma
 /backend/prisma/dev.db
 /backend/prisma/dev.db-journal
+
+# kubernetes secrets
+eks/secrets.yaml
