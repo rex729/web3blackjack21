@@ -19,14 +19,14 @@ defineProps<{
     </div>
 
     <!-- Cards Fan -->
-    <div class="flex -space-x-12 min-h-[144px]">
+    <div class="flex -space-x-8 md:-space-x-12 min-h-[144px]">
       <div v-for="(card, i) in cards" :key="i" class="relative" :style="{ zIndex: i }">
         <CardComp :card="card" :index="i" />
       </div>
 
       <!-- Empty Placeholder -->
       <div v-if="cards.length === 0" 
-        class="w-24 h-36 border-2 border-dashed border-white/20 rounded-lg flex items-center justify-center text-white/20 font-bold uppercase tracking-widest text-xs"
+        class="w-20 h-28 md:w-24 md:h-36 border-2 border-dashed border-white/20 rounded-lg flex items-center justify-center text-white/20 font-bold uppercase tracking-widest text-[10px] md:text-xs"
       >
         {{ label || 'Empty' }}
       </div>

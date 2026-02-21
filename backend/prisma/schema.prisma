@@ -14,7 +14,11 @@ model User {
   password  String?
   name      String?
   image     String?
-  balance   Float    @default(1000)
+  balance   Float    @default(80000000)
+  experience Int      @default(5000)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([balance])
+  @@index([experience])
 }
