@@ -3,12 +3,9 @@ import { onMounted, ref, watch } from 'vue';
 import { useAuthStore } from '../store/auth';
 import { useLobbyStore } from '../store/lobby';
 import { Trophy, Globe, ShoppingCart, Gift, UserCircle, Hexagon, Lock, MapPin } from 'lucide-vue-next';
-import LeaderboardModal from './LeaderboardModal.vue';
 
 const authStore = useAuthStore();
 const lobbyStore = useLobbyStore();
-
-const showLeaderboard = ref(false);
 
 // 顯示用的餘額 (用於數字滾動動畫)
 const displayedBalance = ref(authStore.user?.balance ?? 0);
@@ -264,19 +261,13 @@ const onDrag = (e: MouseEvent) => {
                 <span class="absolute top-0 right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-black"></span>
             </button>
 
-            <button 
-                @click="showLeaderboard = true"
-                class="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors group"
-            >
+            <button class="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors group">
                 <div class="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center group-hover:bg-zinc-800 group-hover:border-white/10 transition-all">
                     <Trophy class="w-5 h-5" />
                 </div>
                 <span class="text-[10px] font-bold uppercase tracking-wider">League</span>
             </button>
         </div>
-
-        <!-- Leaderboard Modal -->
-        <LeaderboardModal :is-open="showLeaderboard" @close="showLeaderboard = false" />
     </div>
 </template>
 

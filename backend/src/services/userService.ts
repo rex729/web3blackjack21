@@ -57,23 +57,4 @@ export class UserService {
             where: { id: userId }
         });
     }
-
-    /**
-     * 獲取排行榜 (Leaderboard)
-     * @param limit 獲取前 N 名玩家
-     */
-    static async getLeaderboard(limit: number = 20) {
-        return prisma.user.findMany({
-            orderBy: {
-                balance: 'desc'
-            },
-            take: limit,
-            select: {
-                id: true,
-                name: true,
-                image: true,
-                balance: true
-            }
-        });
-    }
 }

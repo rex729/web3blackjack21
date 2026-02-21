@@ -125,17 +125,6 @@ app.post("/api/user/balance", async (req, res) => {
     }
 });
 
-// 排行榜 API (Leaderboard API)
-app.get("/api/leaderboard", async (req, res) => {
-    try {
-        const users = await UserService.getLeaderboard(20);
-        res.json({ success: true, data: users });
-    } catch (error) {
-        console.error("Leaderboard API error:", error);
-        res.status(500).json({ error: "Failed to fetch leaderboard" });
-    }
-});
-
 // Socket.io 用於即時功能
 // 具備驗證與重連支援的 Socket.io (Socket.io with Auth and Reconnection Support)
 import { GameService } from "./services/gameService";
