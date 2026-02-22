@@ -50,13 +50,13 @@ export class MissionService {
             missions: [
                 {
                     ...MISSIONS.STREAK_3,
-                    progress: Math.min(user.maxDailyWinStreak, MISSIONS.STREAK_3.target),
+                    progress: Math.min(user.currentWinStreak, MISSIONS.STREAK_3.target),
                     isClaimed: !!claimed[MISSIONS.STREAK_3.id],
                     isComplete: user.maxDailyWinStreak >= MISSIONS.STREAK_3.target
                 },
                 {
                     ...MISSIONS.STREAK_5,
-                    progress: Math.min(user.maxDailyWinStreak, MISSIONS.STREAK_5.target),
+                    progress: Math.min(user.currentWinStreak, MISSIONS.STREAK_5.target),
                     isClaimed: !!claimed[MISSIONS.STREAK_5.id],
                     isComplete: user.maxDailyWinStreak >= MISSIONS.STREAK_5.target
                 },
@@ -141,8 +141,10 @@ export class MissionService {
     static async recordGameResult(userId: string, result: 'win' | 'lose' | 'push') {
         try {
             await prisma.$transaction(async (tx) => {
-                const user = await tx.user.findUnique({ where: { id: userId } });
-                if (!user) return;
+                // Use FOR UPDATE to lock the row and prevent race conditions
+                const users = await tx.$queryRaw<any[]>`SELECT * FROM "User" WHERE id = ${userId} FOR UPDATE`;
+                if (!users || users.length === 0) return;
+                const user = users[0];
 
                 const now = new Date();
                 const lastDate = user.lastMissionDate;
@@ -170,7 +172,7 @@ export class MissionService {
                 }
                 // If push, streak is retained but not increased
 
-                await tx.user.update({
+                const updatedUser = await tx.user.update({
                     where: { id: userId },
                     data: {
                         currentWinStreak,
@@ -180,6 +182,8 @@ export class MissionService {
                         lastMissionDate: now
                     }
                 });
+
+                console.log(`[MissionService] Result recorded for ${user.email}: ${result}. Streak: ${currentWinStreak} (Max: ${maxDailyWinStreak})`);
             });
         } catch (error) {
             console.error('[MissionService] Error recording game result:', error);
