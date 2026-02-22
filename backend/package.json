@@ -23,9 +23,12 @@
     },
     "devDependencies": {
         "@cucumber/cucumber": "^12.6.0",
+        "@types/chai": "^5.2.3",
         "@types/cors": "^2.8.17",
         "@types/express": "^4.17.21",
         "@types/node": "^20.12.7",
+        "chai": "^6.2.2",
+        "delay": "^7.0.0",
         "nodemon": "^3.1.0",
         "prisma": "^5.22.0",
         "ts-node": "^10.9.2",

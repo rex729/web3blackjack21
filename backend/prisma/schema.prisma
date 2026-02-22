@@ -18,6 +18,14 @@ model User {
   experience      Int      @default(0)
   adRewardCount   Int      @default(0)
   lastAdRewardDate DateTime?
+
+  // Daily Missions Tracking
+  currentWinStreak     Int       @default(0)
+  maxDailyWinStreak    Int       @default(0)
+  dailyTotalWins       Int       @default(0)
+  dailyMissionsClaimed Json?     // e.g. {"streak3": true, "streak5": false, "total15": false}
+  lastMissionDate      DateTime?
+
   createdAt       DateTime @default(now())
   updatedAt DateTime @updatedAt
 

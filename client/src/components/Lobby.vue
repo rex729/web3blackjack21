@@ -2,15 +2,19 @@
 import { onMounted, ref, watch } from 'vue';
 import { useAuthStore } from '../store/auth';
 import { useLobbyStore } from '../store/lobby';
-import { Trophy, Globe, UserCircle, Hexagon, Lock, Coins } from 'lucide-vue-next';
+import { useMissionStore } from '../store/mission';
+import { Trophy, Globe, UserCircle, Hexagon, Lock, Coins, Target } from 'lucide-vue-next';
 import LeaderboardModal from './LeaderboardModal.vue';
 import RewardModal from './RewardModal.vue';
+import MissionModal from './MissionModal.vue';
 
 const authStore = useAuthStore();
 const lobbyStore = useLobbyStore();
+const missionStore = useMissionStore();
 
 const showLeaderboard = ref(false);
 const showRewardModal = ref(false);
+const showMissionModal = ref(false);
 
 // 顯示用的餘額 (用於數字滾動動畫)
 const displayedBalance = ref(authStore.user?.balance ?? 0);
@@ -78,6 +82,11 @@ onMounted(async () => {
     }
     // 抓取關卡資訊
     await lobbyStore.fetchLevels();
+    
+    // 抓取任務資訊
+    if (authStore.user) {
+        await missionStore.fetchMissionStatus();
+    }
 
     // 再設定延遲更新 (捕捉剛剛可能發生的代理人代打結算)
     setTimeout(async () => {
@@ -298,7 +307,7 @@ const onDrag = (e: MouseEvent) => {
         </div>
 
         <!-- 底部導航欄 (Bottom Navigation) -->
-        <div class="h-24 bg-zinc-950 border-t border-white/10 flex justify-center items-center gap-12 z-20 pb-4">
+        <div class="h-24 bg-zinc-950 border-t border-white/10 flex justify-center items-center gap-8 z-20 pb-4">
 
             <button 
                 @click="showRewardModal = true"
@@ -310,6 +319,19 @@ const onDrag = (e: MouseEvent) => {
                     <Coins class="w-5 h-5 group-hover:text-yellow-400 transition-colors" />
                 </div>
                 <span class="text-[10px] font-bold uppercase tracking-wider group-hover:text-yellow-400 transition-colors">Rewards</span>
+            </button>
+
+            <!-- Missions Button -->
+            <button 
+                @click="showMissionModal = true"
+                class="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors group relative"
+            >
+                <div class="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center group-hover:bg-zinc-800 group-hover:border-white/10 transition-all">
+                    <!-- Notification Dot -->
+                    <span v-if="missionStore.claimableCount > 0" class="absolute top-2 right-2 w-2.5 h-2.5 bg-purple-500 rounded-full shadow-[0_0_8px_rgba(168,85,247,0.8)]"></span>
+                    <Target class="w-5 h-5 group-hover:text-purple-400 transition-colors" />
+                </div>
+                <span class="text-[10px] font-bold uppercase tracking-wider group-hover:text-purple-400 transition-colors">Missions</span>
             </button>
 
             <button class="flex flex-col items-center gap-1 text-white group scale-110">
@@ -336,6 +358,9 @@ const onDrag = (e: MouseEvent) => {
 
         <!-- Reward Modal -->
         <RewardModal v-model:show="showRewardModal" />
+
+        <!-- Mission Modal -->
+        <MissionModal v-model:show="showMissionModal" />
     </div>
 </template>
 

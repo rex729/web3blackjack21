@@ -40,15 +40,16 @@ export class RewardService {
      */
     static async claimAdReward(userId: string) {
         // Execute the entire read-check-update process inside a single transaction
+        // Use precise parameterized QueryRaw for explicit row-level locking
         return await prisma.$transaction(async (tx) => {
-            // 1. Fetch user (inside transaction)
-            const user = await tx.user.findUnique({ where: { id: userId } });
-            if (!user) throw new Error('User not found');
+            // 1. Explicitly Lock the specific user row until the end of this transaction.
+            const users = await tx.$queryRaw<any[]>`SELECT * FROM "User" WHERE id = ${userId} FOR UPDATE`;
+            if (!users || users.length === 0) throw new Error('User not found');
+            const user = users[0];
 
             const now = new Date();
             const lastDate = user.lastAdRewardDate;
 
-            // 2. Evaluate if it's a new day
             let isNewDay = false;
             if (!lastDate ||
                 lastDate.getUTCFullYear() !== now.getUTCFullYear() ||
@@ -59,14 +60,14 @@ export class RewardService {
 
             const currentCount = isNewDay ? 0 : user.adRewardCount;
 
-            // 3. Security Assertions (Transaction aborts here if false)
+            // 2. Security Assertions
             if (currentCount >= MAX_DAILY_REWARDS) {
                 throw new Error(`Daily reward limit of ${MAX_DAILY_REWARDS} reached.`);
             }
 
             const newCount = currentCount + 1;
 
-            // 4. Atomic Update
+            // 3. Update the database (guaranteed no race condition due to FOR UPDATE lock)
             const updatedUser = await tx.user.update({
                 where: { id: userId },
                 data: {
@@ -84,6 +85,8 @@ export class RewardService {
                 maxRewards: MAX_DAILY_REWARDS,
                 canClaim: newCount < MAX_DAILY_REWARDS,
             };
+        }, {
+            isolationLevel: 'Serializable'
         });
     }
 }

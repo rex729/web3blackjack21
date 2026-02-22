@@ -7,9 +7,11 @@ import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
 import { UserService } from "./services/userService";
 import { GameService } from "./services/gameService";
+import { MissionService } from "./services/missionService";
 import { LEVEL_RULES } from "./config/rules";
 import { calculateLevel } from "./utils/levelSystem";
 import rewardRoutes from "./routes/rewardRoutes";
+import missionRoutes from "./routes/missionRoutes";
 
 dotenv.config();
 
@@ -32,6 +34,7 @@ app.use(express.json());
 
 // Apply Routes
 app.use('/api/rewards', rewardRoutes);
+app.use('/api/missions', missionRoutes);
 
 // Auth API (認證 API)
 
@@ -150,7 +153,7 @@ app.get("/api/leaderboard", async (req, res) => {
         const users = await UserService.getLeaderboard(type, limit);
 
         // 格式化回傳資料 (包含計算後的等級)
-        const formattedLeaderboard = users.map(user => ({
+        const formattedLeaderboard = users.map((user: any) => ({
             id: user.id,
             name: user.name,
             image: user.image,
@@ -408,6 +411,8 @@ io.on("connection", async (socket: any) => {
             // 檢查是否觸發 5-Card Charlie (或其他直接勝利條件)
             if (game.status === 'won') {
                 try {
+                    await MissionService.recordGameResult(user.id, 'win');
+
                     // 獲得獎金 (1倍賠率，即 2倍 CurrentBet)
                     const payout = game.currentBet * 2;
                     const updatedUser = await UserService.updateBalance(user.id, payout);
@@ -432,6 +437,9 @@ io.on("connection", async (socket: any) => {
                 } catch (e) {
                     console.error("5-Card Charlie payout failed", e);
                 }
+            } else if (game.status === 'lost') {
+                await MissionService.recordGameResult(user.id, 'lose');
+                socket.emit("gameState", game.getState());
             } else {
                 socket.emit("gameState", game.getState());
             }
@@ -473,6 +481,10 @@ io.on("connection", async (socket: any) => {
             const dbUserAfterDouble = await UserService.getUser(user.id);
             console.log(`[Game] Balance after Double deduction: ${dbUserAfterDouble?.balance}`);
 
+            if (game.getState().status === 'lost') {
+                await MissionService.recordGameResult(user.id, 'lose');
+            }
+
             socket.emit("balanceUpdate", { balance: dbUserAfterDouble?.balance ?? 0 });
             socket.emit("gameState", game.getState());
 
@@ -482,6 +494,11 @@ io.on("connection", async (socket: any) => {
                 setTimeout(async () => {
                     const { payout } = game.dealerTurn();
                     console.log(`[Game] Double Result Payout: ${payout}`);
+
+                    const isWin = payout > game.currentBet;
+                    const isPush = payout === game.currentBet;
+                    const result = isWin ? 'win' : isPush ? 'push' : 'lose';
+                    await MissionService.recordGameResult(user.id, result);
 
                     // 處理結算與經驗值 (與 Stand 邏輯共用，可重構但這裡先 Copy)
                     if (payout > 0) {
@@ -518,6 +535,11 @@ io.on("connection", async (socket: any) => {
         if (!game || game.status !== 'playing') return;
 
         const { payout } = game.dealerTurn();
+
+        const isWin = payout > game.currentBet;
+        const isPush = payout === game.currentBet;
+        const result = isWin ? 'win' : isPush ? 'push' : 'lose';
+        await MissionService.recordGameResult(user.id, result);
 
         // 如果贏了或平手，同步獎金
         if (payout > 0) {
@@ -567,6 +589,8 @@ io.on("connection", async (socket: any) => {
             const refund = game.surrender();
 
             if (refund > 0) {
+                await MissionService.recordGameResult(user.id, 'lose');
+
                 // 退還賭注的一半
                 await UserService.updateBalance(user.id, refund);
 
@@ -607,6 +631,12 @@ io.on("connection", async (socket: any) => {
             if (game.status === 'playing') {
                 // 如果在遊戲中「主動」離開，立即幫他結算 (不再等待動畫，確保數據即時性)
                 const { payout } = game.dealerTurn();
+
+                const isWin = payout > game.currentBet;
+                const isPush = payout === game.currentBet;
+                const result = isWin ? 'win' : isPush ? 'push' : 'lose';
+                await MissionService.recordGameResult(user.id, result);
+
                 if (payout > 0) {
                     try {
                         await UserService.updateBalance(user.id, payout);
@@ -643,6 +673,12 @@ io.on("connection", async (socket: any) => {
                     const pScore = game.calculateScore(game.playerHand);
                     const dScore = game.calculateScore(game.dealerHand);
                     console.log(`[Game] Auto-stand result for ${user.email}: [Player: ${pScore} vs Dealer: ${dScore}] Payout ${payout}`);
+
+                    const isWin = payout > game.currentBet;
+                    const isPush = payout === game.currentBet;
+                    const result = isWin ? 'win' : isPush ? 'push' : 'lose';
+                    await MissionService.recordGameResult(user.id, result);
+
                     if (payout > 0) {
                         try {
                             await UserService.updateBalance(user.id, payout);
