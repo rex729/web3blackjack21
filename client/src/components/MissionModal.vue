@@ -119,7 +119,7 @@ const getTitle = (id: string) => {
                         </div>
 
                         <!-- Progress Bar -->
-                        <div class="relative z-10" v-if="!mission.isClaimed">
+                        <div class="relative z-10" v-if="!mission.isComplete && !mission.isClaimed">
                             <div class="flex justify-between text-xs font-bold mb-1">
                                 <span :class="mission.isComplete ? 'text-purple-400' : 'text-zinc-400'">
                                     {{ mission.progress }} / {{ mission.target }}
