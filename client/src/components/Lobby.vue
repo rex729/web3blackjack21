@@ -17,14 +17,14 @@ const showRewardModal = ref(false);
 const showMissionModal = ref(false);
 
 // 顯示用的餘額 (用於數字滾動動畫)
-const displayedBalance = ref(authStore.user?.balance ?? 0);
+const displayedBalance = ref(Math.floor(authStore.user?.balance ?? 0));
 const isBalanceAnimating = ref(false);
 
 // 監聽實際餘額變化，執行滾動動畫
 watch(() => authStore.user?.balance, (newVal, oldVal) => {
     if (newVal === undefined) return;
     if (oldVal === undefined) {
-        displayedBalance.value = newVal;
+        displayedBalance.value = Math.floor(newVal);
         return;
     }
 

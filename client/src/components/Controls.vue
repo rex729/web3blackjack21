@@ -50,8 +50,8 @@ const handleAddSideBet = (type: 'perfectPairs' | 'twentyOnePlusThree') => {
 
 const formatAmount = (amt: number) => {
   if (amt >= 1000000) return (amt / 1000000).toFixed(1) + 'M';
-  if (amt >= 1000) return (amt / 1000) + 'k';
-  return amt;
+  if (amt >= 1000) return (amt / 1000).toFixed(0) + 'k';
+  return Math.floor(amt);
 };
 </script>
 

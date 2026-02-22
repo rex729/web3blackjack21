@@ -59,7 +59,7 @@ const showDealerScore = () => {
 
               <div class="flex items-center gap-2 bg-black/80 px-4 py-2 rounded-full text-yellow-500 font-black text-sm md:text-xl border border-yellow-500/50 shadow-lg h-10 md:h-[52px]">
                   <Wallet class="w-4 h-4" />
-                  ${{ authStore.user?.balance ?? 0 }}
+                  ${{ Math.floor(authStore.user?.balance ?? 0).toLocaleString() }}
               </div>
               <div 
                 @click="showExitModal = true"
