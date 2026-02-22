@@ -14,9 +14,11 @@ model User {
   password  String?
   name      String?
   image     String?
-  balance   Float    @default(10000)
-  experience Int      @default(0)
-  createdAt DateTime @default(now())
+  balance         Float    @default(10000)
+  experience      Int      @default(0)
+  adRewardCount   Int      @default(0)
+  lastAdRewardDate DateTime?
+  createdAt       DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([balance])

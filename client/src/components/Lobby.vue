@@ -2,13 +2,15 @@
 import { onMounted, ref, watch } from 'vue';
 import { useAuthStore } from '../store/auth';
 import { useLobbyStore } from '../store/lobby';
-import { Trophy, Globe, ShoppingCart, Gift, UserCircle, Hexagon, Lock } from 'lucide-vue-next';
+import { Trophy, Globe, UserCircle, Hexagon, Lock, Coins } from 'lucide-vue-next';
 import LeaderboardModal from './LeaderboardModal.vue';
+import RewardModal from './RewardModal.vue';
 
 const authStore = useAuthStore();
 const lobbyStore = useLobbyStore();
 
 const showLeaderboard = ref(false);
+const showRewardModal = ref(false);
 
 // 顯示用的餘額 (用於數字滾動動畫)
 const displayedBalance = ref(authStore.user?.balance ?? 0);
@@ -60,8 +62,20 @@ onMounted(async () => {
     setTimeout(() => { isBalanceAnimating.value = false; }, 300);
 
     // 先立即抓一次 (確保剛登入時資料正確)
-    authStore.initialize(); 
-    
+    await authStore.initialize(); 
+
+    // 取得廣告獎勵狀態並自動跳窗
+    if (authStore.user) {
+        await authStore.fetchRewardStatus();
+        const today = new Date().toDateString();
+        const lastAutoPopup = localStorage.getItem('last_auto_ad_date');
+        
+        if (lastAutoPopup !== today && authStore.rewardStatus?.canClaim) {
+            setTimeout(() => {
+                showRewardModal.value = true;
+            }, 1000);
+        }
+    }
     // 抓取關卡資訊
     await lobbyStore.fetchLevels();
 
@@ -285,11 +299,17 @@ const onDrag = (e: MouseEvent) => {
 
         <!-- 底部導航欄 (Bottom Navigation) -->
         <div class="h-24 bg-zinc-950 border-t border-white/10 flex justify-center items-center gap-12 z-20 pb-4">
-            <button class="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors group">
+
+            <button 
+                @click="showRewardModal = true"
+                class="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors group relative"
+            >
                 <div class="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center group-hover:bg-zinc-800 group-hover:border-white/10 transition-all">
-                    <ShoppingCart class="w-5 h-5" />
+                    <!-- Notification Dot -->
+                    <span v-if="authStore.rewardStatus?.canClaim" class="absolute top-2 right-2 w-2.5 h-2.5 bg-yellow-500 rounded-full shadow-[0_0_8px_rgba(234,179,8,0.8)]"></span>
+                    <Coins class="w-5 h-5 group-hover:text-yellow-400 transition-colors" />
                 </div>
-                <span class="text-[10px] font-bold uppercase tracking-wider">Shop</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider group-hover:text-yellow-400 transition-colors">Rewards</span>
             </button>
 
             <button class="flex flex-col items-center gap-1 text-white group scale-110">
@@ -299,14 +319,6 @@ const onDrag = (e: MouseEvent) => {
                 <span class="text-[10px] font-bold uppercase tracking-wider text-blue-400">Play</span>
             </button>
 
-             <button class="flex flex-col items-center gap-1 text-zinc-500 hover:text-white transition-colors group relative">
-                <div class="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center group-hover:bg-zinc-800 group-hover:border-white/10 transition-all">
-                    <Gift class="w-5 h-5" />
-                </div>
-                <span class="text-[10px] font-bold uppercase tracking-wider">Boxes</span>
-                <!-- Notification Dot -->
-                <span class="absolute top-0 right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-black"></span>
-            </button>
 
             <button 
                 @click="showLeaderboard = true"
@@ -321,6 +333,9 @@ const onDrag = (e: MouseEvent) => {
 
         <!-- Leaderboard Modal -->
         <LeaderboardModal :is-open="showLeaderboard" @close="showLeaderboard = false" />
+
+        <!-- Reward Modal -->
+        <RewardModal v-model:show="showRewardModal" />
     </div>
 </template>
 

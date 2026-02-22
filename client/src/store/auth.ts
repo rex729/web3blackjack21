@@ -28,6 +28,12 @@ export const useAuthStore = defineStore('auth', {
         token: localStorage.getItem('auth_token') as string | null,
         loading: false,
         error: null as string | null,
+        rewardStatus: null as {
+            adRewardCount: number;
+            maxRewards: number;
+            canClaim: boolean;
+            rewardAmount: number;
+        } | null,
     }),
 
     getters: {
@@ -108,6 +114,35 @@ export const useAuthStore = defineStore('auth', {
                 this.user.balance = response.data.balance;
             } catch (err) {
                 console.error('Failed to sync balance', err);
+            }
+        },
+
+        async fetchRewardStatus() {
+            if (!this.token) return;
+            try {
+                const response = await axios.get(`${API_URL}/rewards/status`, {
+                    headers: { Authorization: `Bearer ${this.token}` }
+                });
+                this.rewardStatus = response.data;
+            } catch (err) {
+                console.error('Failed to fetch reward status', err);
+            }
+        },
+
+        async claimReward() {
+            if (!this.token) return false;
+            try {
+                const response = await axios.post(`${API_URL}/rewards/claim`, {}, {
+                    headers: { Authorization: `Bearer ${this.token}` }
+                });
+                this.rewardStatus = response.data;
+                if (this.user) {
+                    this.user.balance = response.data.balance;
+                }
+                return true;
+            } catch (err) {
+                console.error('Failed to claim reward', err);
+                return false;
             }
         },
 

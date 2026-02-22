@@ -8,6 +8,9 @@ RUN npm install
 
 COPY . .
 
+# TODO: 填寫您申請到的 Google GAM 版位 ID (不要加引號)
+ENV VITE_GAM_REWARD_AD_UNIT=/22639388115/rewarded_web_example
+
 RUN npm run build
 
 # Production Stage

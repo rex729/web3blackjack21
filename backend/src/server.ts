@@ -9,6 +9,7 @@ import { UserService } from "./services/userService";
 import { GameService } from "./services/gameService";
 import { LEVEL_RULES } from "./config/rules";
 import { calculateLevel } from "./utils/levelSystem";
+import rewardRoutes from "./routes/rewardRoutes";
 
 dotenv.config();
 
@@ -28,6 +29,9 @@ const io = new Server(httpServer, {
 
 app.use(cors());
 app.use(express.json());
+
+// Apply Routes
+app.use('/api/rewards', rewardRoutes);
 
 // Auth API (認證 API)
 
