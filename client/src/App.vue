@@ -8,6 +8,7 @@ import { useGameStore } from './store/game';
 
 const authStore = useAuthStore();
 const gameStore = useGameStore();
+const isDev = import.meta.env.DEV;
 
 // 監聽使用者狀態變化
 watch(() => authStore.user, (newVal) => {
@@ -44,8 +45,8 @@ onMounted(async () => {
   <!-- 3. 已選桌 -> 顯示遊戲桌 -->
   <Board v-else />
 
-  <!-- Debug Info: Display Server Pod Name -->
-  <div v-if="gameStore.serverPodName" class="fixed bottom-1 left-1 z-50 pointer-events-none opacity-40 text-[10px] text-white font-mono bg-black/50 px-2 py-1 rounded">
+  <!-- Debug Info: Display Server Pod Name (Only in Dev) -->
+  <div v-if="gameStore.serverPodName && isDev" class="fixed bottom-1 left-1 z-50 pointer-events-none opacity-40 text-[10px] text-white font-mono bg-black/50 px-2 py-1 rounded">
     Connected to: {{ gameStore.serverPodName }}
   </div>
 </template>
