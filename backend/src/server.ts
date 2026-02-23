@@ -411,34 +411,24 @@ io.on("connection", async (socket: any) => {
             // 檢查是否觸發 5-Card Charlie (或其他直接勝利條件)
             if (game.status === 'won') {
                 try {
-                    await MissionService.recordGameResult(user.id, 'win');
-
-                    // 獲得獎金 (1倍賠率，即 2倍 CurrentBet)
                     const payout = game.currentBet * 2;
-                    const updatedUser = await UserService.updateBalance(user.id, payout);
-
-                    console.log(`[Game] 5-Card Charlie! ${user.email} Wins ${payout}`);
-
-                    // 廣播餘額與狀態
-                    socket.emit("balanceUpdate", { balance: updatedUser.balance });
-                    socket.emit("gameState", game.getState());
-
-                    // 計算 XP (視同一般獲勝)
                     const xpMultiplier = game.config.xpMultiplier || 1;
                     const xpGained = Math.floor(100 * xpMultiplier);
 
-                    if (xpGained > 0) {
-                        const xpUser = await UserService.addExperience(user.id, xpGained);
-                        if (xpUser) {
-                            const levelInfo = calculateLevel(xpUser.experience);
-                            socket.emit("userUpdate", { level: levelInfo.level, experience: xpUser.experience });
-                        }
-                    }
+                    const updatedUser = await MissionService.settleGameResult(user.id, 'win', payout, xpGained, game.playerHand.length);
+
+                    console.log(`[Game] 5-Card Charlie! ${user.email} Wins ${payout}`);
+
+                    // 廣播餘額、等級與狀態
+                    socket.emit("balanceUpdate", { balance: updatedUser.balance });
+                    const levelInfo = calculateLevel(updatedUser.experience);
+                    socket.emit("userUpdate", { level: levelInfo.level, experience: updatedUser.experience });
+                    socket.emit("gameState", game.getState());
                 } catch (e) {
                     console.error("5-Card Charlie payout failed", e);
                 }
             } else if (game.status === 'lost') {
-                await MissionService.recordGameResult(user.id, 'lose');
+                await MissionService.settleGameResult(user.id, 'lose', 0, 0, game.playerHand.length);
                 socket.emit("gameState", game.getState());
             } else {
                 socket.emit("gameState", game.getState());
@@ -482,7 +472,7 @@ io.on("connection", async (socket: any) => {
             console.log(`[Game] Balance after Double deduction: ${dbUserAfterDouble?.balance}`);
 
             if (game.getState().status === 'lost') {
-                await MissionService.recordGameResult(user.id, 'lose');
+                await MissionService.settleGameResult(user.id, 'lose', 0, 0, game.playerHand.length);
             }
 
             socket.emit("balanceUpdate", { balance: dbUserAfterDouble?.balance ?? 0 });
@@ -498,29 +488,20 @@ io.on("connection", async (socket: any) => {
                     const isWin = payout > game.currentBet;
                     const isPush = payout === game.currentBet;
                     const result = isWin ? 'win' : isPush ? 'push' : 'lose';
-                    await MissionService.recordGameResult(user.id, result);
 
-                    // 處理結算與經驗值 (與 Stand 邏輯共用，可重構但這裡先 Copy)
-                    if (payout > 0) {
-                        try {
-                            const updatedUser = await UserService.updateBalance(user.id, payout);
-                            socket.emit("balanceUpdate", { balance: updatedUser.balance });
+                    const xpMultiplier = game.config.xpMultiplier || 1;
+                    const xpGained = isWin ? Math.floor(100 * xpMultiplier) : 0;
 
-                            const isWin = payout > game.currentBet;
-                            const xpMultiplier = game.config.xpMultiplier || 1;
-                            const baseXp = isWin ? 100 : 0;
-                            const xpGained = Math.floor(baseXp * xpMultiplier);
+                    try {
+                        const updatedUser = await MissionService.settleGameResult(user.id, result, payout, xpGained, game.playerHand.length);
 
-                            if (xpGained > 0) {
-                                const xpUser = await UserService.addExperience(user.id, xpGained);
-                                if (xpUser) {
-                                    const levelInfo = calculateLevel(xpUser.experience);
-                                    socket.emit("userUpdate", { level: levelInfo.level, experience: xpUser.experience });
-                                }
-                            }
-                        } catch (e) {
-                            console.error(e);
+                        socket.emit("balanceUpdate", { balance: updatedUser.balance });
+                        if (xpGained > 0) {
+                            const levelInfo = calculateLevel(updatedUser.experience);
+                            socket.emit("userUpdate", { level: levelInfo.level, experience: updatedUser.experience });
                         }
+                    } catch (e) {
+                        console.error("Double payout failed", e);
                     }
                     socket.emit("gameState", game.getState());
                 }, 1000); // 1秒延遲
@@ -539,42 +520,20 @@ io.on("connection", async (socket: any) => {
         const isWin = payout > game.currentBet;
         const isPush = payout === game.currentBet;
         const result = isWin ? 'win' : isPush ? 'push' : 'lose';
-        await MissionService.recordGameResult(user.id, result);
 
-        // 如果贏了或平手，同步獎金
-        if (payout > 0) {
-            try {
-                const updatedUser = await UserService.updateBalance(user.id, payout);
-                // 立即通知前端更新餘額
-                socket.emit("balanceUpdate", { balance: updatedUser.balance });
+        const xpMultiplier = game.config.xpMultiplier || 1;
+        const xpGained = isWin ? Math.floor(100 * xpMultiplier) : 0;
 
-                // 計算經驗值：
-                // 規則：基礎 100 XP，僅在獲勝 (Payout > Bet) 時發放，並乘上倍率
-                const isWin = payout > game.currentBet;
-                const xpMultiplier = game.config.xpMultiplier || 1;
-                const baseXp = isWin ? 100 : 0;
-                // 注意：Math.floor(0 * multiplier) 還是 0
-                const xpGained = Math.floor(baseXp * xpMultiplier);
+        try {
+            const updatedUser = await MissionService.settleGameResult(user.id, result, payout, xpGained, game.playerHand.length);
 
-                // 發放經驗值 (若 xpGained 為 0 則不執行)
-                if (xpGained > 0) {
-                    const xpUser = await UserService.addExperience(user.id, xpGained);
-                    if (xpUser) {
-                        const levelInfo = calculateLevel(xpUser.experience);
-                        socket.emit("userUpdate", {
-                            level: levelInfo.level,
-                            experience: xpUser.experience
-                        });
-                        console.log(`[Game] XP Awarded for ${user.name}: +${xpGained} XP | Total: ${levelInfo.currentLevelXp}/${levelInfo.nextLevelXpThreshold} (Lv.${levelInfo.level})`);
-                    }
-                }
-            } catch (e) {
-                console.error("Payout failed", e);
+            socket.emit("balanceUpdate", { balance: updatedUser.balance });
+            if (xpGained > 0) {
+                const levelInfo = calculateLevel(updatedUser.experience);
+                socket.emit("userUpdate", { level: levelInfo.level, experience: updatedUser.experience });
             }
-        } else {
-            // 輸了 (Payout <= Bet) 不發經驗值，直接忽略 XP 更新
-            // Log XP failure if curious, but logic dictates no XP.
-            console.log(`[Game] User ${user.email} lost or pushed. No XP awarded.`);
+        } catch (e) {
+            console.error("Stand payout failed", e);
         }
 
         socket.emit("gameState", game.getState());
@@ -589,18 +548,9 @@ io.on("connection", async (socket: any) => {
             const refund = game.surrender();
 
             if (refund > 0) {
-                await MissionService.recordGameResult(user.id, 'lose');
-
-                // 退還賭注的一半
-                await UserService.updateBalance(user.id, refund);
-
-                // 取得最新餘額
-                const updatedUser = await UserService.getUser(user.id);
-
+                const updatedUser = await MissionService.settleGameResult(user.id, 'lose', refund, 0, game.playerHand.length);
                 console.log(`[Game] User ${user.email} surrendered. Refund: ${refund}.`);
-
-                // 通知前端更新
-                socket.emit("balanceUpdate", { balance: updatedUser?.balance ?? 0 });
+                socket.emit("balanceUpdate", { balance: updatedUser.balance });
             } else {
                 // 若投降失敗 (例如不符合條件)，回傳錯誤
                 if (game.message) {
@@ -635,14 +585,11 @@ io.on("connection", async (socket: any) => {
                 const isWin = payout > game.currentBet;
                 const isPush = payout === game.currentBet;
                 const result = isWin ? 'win' : isPush ? 'push' : 'lose';
-                await MissionService.recordGameResult(user.id, result);
 
-                if (payout > 0) {
-                    try {
-                        await UserService.updateBalance(user.id, payout);
-                    } catch (e) {
-                        console.error("Leave-table payout failed", e);
-                    }
+                try {
+                    await MissionService.settleGameResult(user.id, result, payout, 0, game.playerHand.length);
+                } catch (e) {
+                    console.error("Leave-table payout failed", e);
                 }
             }
             delete games[user.id];
@@ -677,31 +624,14 @@ io.on("connection", async (socket: any) => {
                     const isWin = payout > game.currentBet;
                     const isPush = payout === game.currentBet;
                     const result = isWin ? 'win' : isPush ? 'push' : 'lose';
-                    await MissionService.recordGameResult(user.id, result);
 
-                    if (payout > 0) {
-                        try {
-                            await UserService.updateBalance(user.id, payout);
+                    const xpMultiplier = game.config.xpMultiplier || 1;
+                    const xpGained = isWin ? Math.floor(100 * xpMultiplier) : 0;
 
-                            // Auto-stand XP Calculation (Fixed 100 rule)
-                            const isWin = payout > game.currentBet;
-                            const xpMultiplier = game.config.xpMultiplier || 1;
-                            const baseXp = isWin ? 100 : 0;
-                            const xpGained = Math.floor(baseXp * xpMultiplier);
-
-                            if (xpGained > 0) {
-                                const xpUser = await UserService.addExperience(user.id, xpGained);
-                                if (xpUser) {
-                                    const levelInfo = calculateLevel(xpUser.experience);
-                                    console.log(`[Game] Auto-stand XP Awarded for ${user.name}: +${xpGained} XP | Total: ${levelInfo.currentLevelXp}/${levelInfo.nextLevelXpThreshold} (Lv.${levelInfo.level})`);
-                                }
-                            }
-                        } catch (e) {
-                            console.error("Auto-stand payout/XP update failed", e);
-                        }
-                    } else {
-                        // Auto-stand Loss -> No XP
-                        console.log(`[Game] Auto-stand User ${user.email} lost/pushed. No XP.`);
+                    try {
+                        await MissionService.settleGameResult(user.id, result, payout, xpGained, game.playerHand.length);
+                    } catch (e) {
+                        console.error("Auto-stand settlement failed", e);
                     }
                 }
                 delete games[user.id];

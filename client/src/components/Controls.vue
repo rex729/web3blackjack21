@@ -57,9 +57,12 @@ const formatAmount = (amt: number) => {
 
 <template>
   <!-- Betting Phase -->
-  <div v-if="store.status === 'betting' || store.status === 'idle'" class="flex flex-col items-center gap-6 md:gap-12 w-full max-w-4xl px-4 py-4">
+  <div v-if="store.status === 'betting' || store.status === 'idle'" 
+       class="flex flex-col items-center gap-6 md:gap-12 w-full max-w-4xl px-4 py-4 transition-opacity duration-300"
+       :class="{ 'opacity-50 pointer-events-none cursor-not-allowed': !store.isInitialized }"
+  >
     <div class="text-xl text-white font-mono animate-pulse mb-4">
-      {{ store.message || 'Place your bet' }}
+      {{ !store.isInitialized ? 'Syncing with table...' : (store.message || 'Place your bet') }}
     </div>
 
     <!-- Betting Layout -->
@@ -128,7 +131,10 @@ const formatAmount = (amt: number) => {
   </div>
 
   <!-- Playing Phase -->
-  <div v-else-if="store.status === 'playing'" class="flex gap-4 flex-wrap justify-center">
+  <div v-else-if="store.status === 'playing'" 
+       class="flex gap-4 flex-wrap justify-center transition-opacity duration-300"
+       :class="{ 'opacity-50 pointer-events-none': !store.isInitialized }"
+  >
     <button @click="store.hit"
       class="w-24 h-24 md:w-32 md:h-32 rounded-full bg-green-500 border-b-8 border-green-700 text-white font-black text-lg md:text-2xl uppercase tracking-widest shadow-xl hover:translate-y-1 hover:border-b-4 active:translate-y-2 active:border-b-0 transition-all"
     >

@@ -23,6 +23,7 @@ model User {
   currentWinStreak     Int       @default(0)
   maxDailyWinStreak    Int       @default(0)
   dailyTotalWins       Int       @default(0)
+  dailyFiveCardWins    Int       @default(0)
   dailyMissionsClaimed Json?     // e.g. {"streak3": true, "streak5": false, "total15": false}
   lastMissionDate      DateTime?
 

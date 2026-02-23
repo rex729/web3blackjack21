@@ -56,6 +56,9 @@ export const useGameStore = defineStore('game', {
 
         /** 伺服器 Pod 名稱 (偵偵用) */
         serverPodName: null as string | null,
+
+        /** 是否已收到伺服器初始狀態 */
+        isInitialized: false,
     }),
 
     getters: {
@@ -196,6 +199,7 @@ export const useGameStore = defineStore('game', {
                 twentyOnePlusThree: 0
             };
             this.sideBetResult = null;
+            this.isInitialized = false;
         },
 
         /**
@@ -258,12 +262,17 @@ export const useGameStore = defineStore('game', {
          */
         handleGameStateUpdate(state: GameStatePayload) {
             this._clearAllTimeouts();
+            this.isInitialized = true;
 
+            const oldStatus = this.status;
             const oldPlayerHandCount = this.playerHand.length;
             const oldDealerHandCount = this.dealerHand.length;
 
-            // 這樣才能在後面計算出新舊差異
-            this.currentBet = state.currentBet;
+            // 只有在伺服器有明確下注額 (例如重連或遊戲中)，或是本地尚未下注時，才同步伺服器的下注額
+            // 避免在「剛進入房間迅速點擊下注」時，被伺服器第一時間傳來的 0 元狀態覆蓋。
+            if (state.currentBet > 0 || (state.status !== 'betting' && state.status !== 'idle') || this.currentBet === 0) {
+                this.currentBet = state.currentBet;
+            }
             this.sideBetResult = state.sideBetResult || null;
 
             // Case A: 新局開始 (從 Betting/Idle -> Playing) -> 需立即切換 UI 顯示 Board
@@ -331,8 +340,10 @@ export const useGameStore = defineStore('game', {
                 this.status = state.status;
                 this.message = state.message;
 
-                // 每當回到下注或空閒狀態（例如新局開始前），重置邊注金額
-                if (this.status === 'idle' || this.status === 'betting') {
+                // 只有當狀態從「非下注/非空閒」轉變為「下注/空閒」時（通常是大局結束後新的一局），才重置邊注
+                // 如果已經在下注狀態，不執行重置，以免覆蓋使用者剛剛快速點擊的本地邊注
+                if ((this.status === 'idle' || this.status === 'betting') &&
+                    (oldStatus !== 'idle' && oldStatus !== 'betting')) {
                     this.sideBets = {
                         perfectPairs: 0,
                         twentyOnePlusThree: 0

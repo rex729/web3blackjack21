@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useMissionStore } from '../store/mission';
-import { X, Target, Flame, Trophy, CheckCircle2, ChevronRight, Gift } from 'lucide-vue-next';
+import { X, Target, Flame, Trophy, CheckCircle2, ChevronRight, Gift, Globe } from 'lucide-vue-next';
 
 const props = defineProps<{
     show: boolean;
@@ -29,6 +29,8 @@ const getIcon = (id: string) => {
         case 'streak3': return Flame;
         case 'streak5': return Trophy;
         case 'total15': return Target;
+        case 'total30': return Globe;
+        case 'fivecards': return Flame;
         default: return Target;
     }
 };
@@ -38,6 +40,8 @@ const getTitle = (id: string) => {
         case 'streak3': return '3連勝 (3-Win Streak)';
         case 'streak5': return '5連勝 (5-Win Streak)';
         case 'total15': return '累積15勝 (15 Total Wins)';
+        case 'total30': return '王者之路 (30 Total Wins)';
+        case 'fivecards': return '五小龍成就 (5-Card Win)';
         default: return 'Mission';
     }
 };

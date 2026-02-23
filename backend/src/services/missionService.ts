@@ -6,6 +6,8 @@ export const MISSIONS = {
     STREAK_3: { id: 'streak3', target: 3, reward: 10000, type: 'streak' },
     STREAK_5: { id: 'streak5', target: 5, reward: 20000, type: 'streak' },
     TOTAL_15: { id: 'total15', target: 15, reward: 15000, type: 'total' },
+    TOTAL_30: { id: 'total30', target: 30, reward: 30000, type: 'total' },
+    FIVE_CARDS: { id: 'fivecards', target: 1, reward: 30000, type: 'special' },
 };
 
 export class MissionService {
@@ -35,6 +37,7 @@ export class MissionService {
                     currentWinStreak: 0,
                     maxDailyWinStreak: 0,
                     dailyTotalWins: 0,
+                    dailyFiveCardWins: 0,
                     dailyMissionsClaimed: {},
                     lastMissionDate: now
                 }
@@ -65,6 +68,18 @@ export class MissionService {
                     progress: Math.min(user.dailyTotalWins, MISSIONS.TOTAL_15.target),
                     isClaimed: !!claimed[MISSIONS.TOTAL_15.id],
                     isComplete: user.dailyTotalWins >= MISSIONS.TOTAL_15.target
+                },
+                {
+                    ...MISSIONS.TOTAL_30,
+                    progress: Math.min(user.dailyTotalWins, MISSIONS.TOTAL_30.target),
+                    isClaimed: !!claimed[MISSIONS.TOTAL_30.id],
+                    isComplete: user.dailyTotalWins >= MISSIONS.TOTAL_30.target
+                },
+                {
+                    ...MISSIONS.FIVE_CARDS,
+                    progress: Math.min(user.dailyFiveCardWins, MISSIONS.FIVE_CARDS.target),
+                    isClaimed: !!claimed[MISSIONS.FIVE_CARDS.id],
+                    isComplete: user.dailyFiveCardWins >= MISSIONS.FIVE_CARDS.target
                 }
             ]
         };
@@ -109,6 +124,10 @@ export class MissionService {
                 isComplete = user.maxDailyWinStreak >= mission.target;
             } else if (mission.type === 'total') {
                 isComplete = user.dailyTotalWins >= mission.target;
+            } else if (mission.type === 'special') {
+                if (mission.id === 'fivecards') {
+                    isComplete = user.dailyFiveCardWins >= mission.target;
+                }
             }
 
             if (!isComplete) {
@@ -136,14 +155,14 @@ export class MissionService {
     }
 
     /**
-     * Called by the Game Engine to update tracking variables
+     * Settle game result: Update mission tracking, balance, and experience in a single transaction.
      */
-    static async recordGameResult(userId: string, result: 'win' | 'lose' | 'push') {
+    static async settleGameResult(userId: string, result: 'win' | 'lose' | 'push', payout: number = 0, xpGained: number = 0, numCards: number = 0) {
         try {
-            await prisma.$transaction(async (tx) => {
+            return await prisma.$transaction(async (tx) => {
                 // Use FOR UPDATE to lock the row and prevent race conditions
                 const users = await tx.$queryRaw<any[]>`SELECT * FROM "User" WHERE id = ${userId} FOR UPDATE`;
-                if (!users || users.length === 0) return;
+                if (!users || users.length === 0) throw new Error('User not found');
                 const user = users[0];
 
                 const now = new Date();
@@ -159,6 +178,7 @@ export class MissionService {
                 let currentWinStreak = isNewDay ? 0 : user.currentWinStreak;
                 let maxDailyWinStreak = isNewDay ? 0 : user.maxDailyWinStreak;
                 let dailyTotalWins = isNewDay ? 0 : user.dailyTotalWins;
+                let dailyFiveCardWins = isNewDay ? 0 : user.dailyFiveCardWins;
                 let claimed = isNewDay ? {} : (user.dailyMissionsClaimed as Record<string, boolean> || {});
 
                 if (result === 'win') {
@@ -166,6 +186,9 @@ export class MissionService {
                     dailyTotalWins += 1;
                     if (currentWinStreak > maxDailyWinStreak) {
                         maxDailyWinStreak = currentWinStreak;
+                    }
+                    if (numCards >= 5) {
+                        dailyFiveCardWins += 1;
                     }
                 } else if (result === 'lose') {
                     currentWinStreak = 0;
@@ -178,15 +201,21 @@ export class MissionService {
                         currentWinStreak,
                         maxDailyWinStreak,
                         dailyTotalWins,
+                        dailyFiveCardWins,
                         dailyMissionsClaimed: claimed,
-                        lastMissionDate: now
+                        lastMissionDate: now,
+                        balance: { increment: payout },
+                        experience: { increment: xpGained }
                     }
                 });
 
-                console.log(`[MissionService] Result recorded for ${user.email}: ${result}. Streak: ${currentWinStreak} (Max: ${maxDailyWinStreak})`);
+                console.log(`[MissionService] Settlement for ${user.email}: ${result}. Payout: ${payout}, XP: +${xpGained}. Streak: ${currentWinStreak}, 5-Card Win: ${numCards >= 5}`);
+
+                return updatedUser;
             });
         } catch (error) {
-            console.error('[MissionService] Error recording game result:', error);
+            console.error('[MissionService] Error settling game result:', error);
+            throw error;
         }
     }
 }
