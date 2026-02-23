@@ -28,7 +28,8 @@ metadata:
 
 spec:
   rules:
-  - http:
+  - host: casinohome.cc
+    http:
       paths:
       # 1. 前端路由 (Client)
       - path: /
