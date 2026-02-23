@@ -11,14 +11,17 @@
   <script>
     window.googletag = window.googletag || { cmd: [] };
   </script>
-  <!-- Microsoft Clarity Tracking -->
-  <script type="text/javascript">
-    (function (c, l, a, r, i, t, y) {
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') return;
-      c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments) };
-      t = l.createElement(r); t.async = 1; t.src = "https://www.clarity.ms/tag/" + i;
-      y = l.getElementsByTagName(r)[0]; y.parentNode.insertBefore(t, y);
-    })(window, document, "clarity", "script", "vlrafpea7s");
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-3551X8VQJN"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+
+    // Check if on localhost to avoid polluting GA data
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      gtag('js', new Date());
+      gtag('config', 'G-3551X8VQJN');
+    }
   </script>
 </head>
 
