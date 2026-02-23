@@ -1,9 +1,32 @@
 <script setup lang="ts">
-import { onMounted, nextTick } from 'vue';
-import { Spade, Heart, Club, Diamond } from 'lucide-vue-next';
+import { onMounted, nextTick, ref } from 'vue';
+import { Spade, Heart, Club, Diamond, Share2, ExternalLink, MoreVertical } from 'lucide-vue-next';
 import { useAuthStore } from '../store/auth';
 
 const authStore = useAuthStore();
+
+// --- 環境偵測邏輯 ---
+const isInAppBrowser = ref(false);
+const isAndroid = ref(false);
+const isIOS = ref(false);
+
+const checkBrowser = () => {
+    // @ts-ignore
+    const ua = navigator.userAgent || navigator.vendor || window.opera;
+    isAndroid.value = /android/i.test(ua);
+    isIOS.value = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
+    
+    // 偵測是否在常見 App 的內建瀏覽器環境
+    const inAppKeywords = ['Line', 'Telegram', 'Lark', 'Feishu', 'MicroMessenger', 'FBAN', 'FBAV', 'Instagram'];
+    isInAppBrowser.value = inAppKeywords.some(key => ua.indexOf(key) > -1);
+
+    // 如果是 Android 且在 App 內，嘗試執行「強制跳轉 Chrome」的黑科技
+    if (isAndroid.value && isInAppBrowser.value) {
+        const currentUrl = window.location.href.replace(/^https?:\/\//, '');
+        const intentUrl = `intent://${currentUrl}#Intent;scheme=https;package=com.android.chrome;end`;
+        window.location.href = intentUrl;
+    }
+};
 
 // Replace with your actual Client ID from Google Cloud Console
 const GOOGLE_CLIENT_ID = "35708177818-vt66utfbrr6ivjtjch3nnk31aihfk1e0.apps.googleusercontent.com";
@@ -13,7 +36,6 @@ const handleGoogleCallback = async (response: any) => {
   const success = await authStore.loginWithGoogle(response.credential);
   if (success) {
     console.log("Google Login Success");
-    // 登入成功後，Socket 連線會在 App.vue 的 watcher 中觸發
   }
 };
 
@@ -23,7 +45,7 @@ const renderGoogleButton = () => {
     nextTick(() => {
       const btn = document.getElementById("google-login-btn");
       if (btn) {
-        btn.innerHTML = ''; // Ensure clean slate
+        btn.innerHTML = '';
         // @ts-ignore
         window.google.accounts.id.renderButton(
           btn,
@@ -41,6 +63,8 @@ const renderGoogleButton = () => {
 };
 
 onMounted(() => {
+  checkBrowser();
+  
   const initGoogleBtn = () => {
     // @ts-ignore
     if (window.google) {
@@ -66,7 +90,40 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col items-center justify-center min-vh-100 w-full bg-black text-white p-8 overflow-hidden">
+  <div class="flex flex-col items-center justify-center min-vh-100 w-full bg-black text-white p-8 overflow-hidden relative">
+    
+    <!-- ⚠️ In-App Browser Guidance Layer (for iOS / Others who didn't auto-jump) -->
+    <div v-if="isInAppBrowser" class="fixed inset-0 z-[100] bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center">
+        <div class="w-20 h-20 bg-yellow-500 rounded-3xl flex items-center justify-center mb-6 animate-pulse">
+            <ExternalLink class="text-black w-10 h-10" />
+        </div>
+        
+        <h2 class="text-3xl font-black mb-4 italic uppercase">Compatible Mode</h2>
+        <p class="text-zinc-400 mb-8 leading-relaxed">
+            為支持 Google 安全登入，請點擊右上角控制項並選擇 <span class="text-white font-bold">「使用預設瀏覽器開啟」</span>。
+        </p>
+
+        <!-- Dynamic Instructions based on OS -->
+        <div class="space-y-6 w-full max-w-xs">
+            <div class="flex items-center gap-4 bg-zinc-900 p-4 rounded-2xl border border-white/10">
+                <div class="w-8 h-8 bg-zinc-800 rounded-lg flex items-center justify-center text-xs font-bold text-zinc-500">1</div>
+                <div class="flex-1 text-left text-sm">
+                    點擊右上角的 <MoreVertical class="inline w-4 h-4" /> 或 <Share2 class="inline w-4 h-4" /> 
+                </div>
+            </div>
+            <div class="flex items-center gap-4 bg-zinc-900 p-4 rounded-2xl border border-white/10">
+                <div class="w-8 h-8 bg-zinc-800 rounded-lg flex items-center justify-center text-xs font-bold text-zinc-500">2</div>
+                <div class="flex-1 text-left text-sm">
+                    選擇 <span class="text-yellow-500 font-bold">使用預設瀏覽器開啟</span>
+                </div>
+            </div>
+        </div>
+
+        <p class="mt-12 text-[10px] text-zinc-600 uppercase tracking-widest italic">
+            Redirecting to System Browser...
+        </p>
+    </div>
+
     <div class="flex gap-4 mb-8 text-6xl animate-bounce">
       <Spade fill="white" class="w-16 h-16" />
       <Heart class="text-red-600 w-16 h-16" fill="currentColor" />
