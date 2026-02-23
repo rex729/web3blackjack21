@@ -53,6 +53,38 @@ const formatAmount = (amt: number) => {
   if (amt >= 1000) return (amt / 1000).toFixed(0) + 'k';
   return Math.floor(amt);
 };
+
+// 防止重複點擊 (Prevent multiple clicks)
+const isActionPending = ref(false);
+
+// 當遊戲狀態改變或收到新牌時，重置 pending 狀態
+watch([() => store.status, () => store.playerHand.length], () => {
+  isActionPending.value = false;
+});
+
+const handleHit = () => {
+  if (isActionPending.value) return;
+  isActionPending.value = true;
+  store.hit();
+};
+
+const handleStand = () => {
+  if (isActionPending.value) return;
+  isActionPending.value = true;
+  store.stand();
+};
+
+const handleDouble = () => {
+  if (isActionPending.value) return;
+  isActionPending.value = true;
+  store.double();
+};
+
+const handleSurrender = () => {
+  if (isActionPending.value) return;
+  isActionPending.value = true;
+  store.surrender();
+};
 </script>
 
 <template>
@@ -133,25 +165,25 @@ const formatAmount = (amt: number) => {
   <!-- Playing Phase -->
   <div v-else-if="store.status === 'playing'" 
        class="flex gap-4 flex-wrap justify-center transition-opacity duration-300"
-       :class="{ 'opacity-50 pointer-events-none': !store.isInitialized }"
+       :class="{ 'opacity-50 pointer-events-none': !store.isInitialized || isActionPending }"
   >
-    <button @click="store.hit"
-      class="w-24 h-24 md:w-32 md:h-32 rounded-full bg-green-500 border-b-8 border-green-700 text-white font-black text-lg md:text-2xl uppercase tracking-widest shadow-xl hover:translate-y-1 hover:border-b-4 active:translate-y-2 active:border-b-0 transition-all"
+    <button @click="handleHit" :disabled="isActionPending"
+      class="w-24 h-24 md:w-32 md:h-32 rounded-full bg-green-500 border-b-8 border-green-700 text-white font-black text-lg md:text-2xl uppercase tracking-widest shadow-xl hover:translate-y-1 hover:border-b-4 active:translate-y-2 active:border-b-0 transition-all disabled:translate-y-2 disabled:border-b-0 disabled:opacity-50"
     >
       HIT
     </button>
-    <button @click="store.stand"
-      class="w-24 h-24 md:w-32 md:h-32 rounded-full bg-red-500 border-b-8 border-red-700 text-white font-black text-lg md:text-2xl uppercase tracking-widest shadow-xl hover:translate-y-1 hover:border-b-4 active:translate-y-2 active:border-b-0 transition-all"
+    <button @click="handleStand" :disabled="isActionPending"
+      class="w-24 h-24 md:w-32 md:h-32 rounded-full bg-red-500 border-b-8 border-red-700 text-white font-black text-lg md:text-2xl uppercase tracking-widest shadow-xl hover:translate-y-1 hover:border-b-4 active:translate-y-2 active:border-b-0 transition-all disabled:translate-y-2 disabled:border-b-0 disabled:opacity-50"
     >
       STAND
     </button>
-    <button v-if="store.currentTableId !== 'level-1'" @click="store.double" :disabled="!store.canDouble"
-      class="w-24 h-24 md:w-32 md:h-32 rounded-full bg-yellow-500 border-b-8 border-yellow-700 text-white font-black text-[10px] md:text-xl uppercase tracking-widest shadow-xl hover:translate-y-1 hover:border-b-4 active:translate-y-2 active:border-b-0 transition-all disabled:opacity-50 disabled:grayscale"
+    <button v-if="store.currentTableId !== 'level-1'" @click="handleDouble" :disabled="!store.canDouble || isActionPending"
+      class="w-24 h-24 md:w-32 md:h-32 rounded-full bg-yellow-500 border-b-8 border-yellow-700 text-white font-black text-[10px] md:text-xl uppercase tracking-widest shadow-xl hover:translate-y-1 hover:border-b-4 active:translate-y-2 active:border-b-0 transition-all disabled:translate-y-2 disabled:border-b-0 disabled:opacity-50 disabled:grayscale"
     >
       DOUBLE
     </button>
-    <button v-if="store.canSurrender" @click="store.surrender"
-      class="w-24 h-24 md:w-32 md:h-32 rounded-full bg-slate-500 border-b-8 border-slate-700 text-white font-black text-[10px] md:text-xl uppercase tracking-widest shadow-xl hover:translate-y-1 hover:border-b-4 active:translate-y-2 active:border-b-0 transition-all"
+    <button v-if="store.canSurrender" @click="handleSurrender" :disabled="isActionPending"
+      class="w-24 h-24 md:w-32 md:h-32 rounded-full bg-slate-500 border-b-8 border-slate-700 text-white font-black text-[10px] md:text-xl uppercase tracking-widest shadow-xl hover:translate-y-1 hover:border-b-4 active:translate-y-2 active:border-b-0 transition-all disabled:translate-y-2 disabled:border-b-0 disabled:opacity-50"
     >
       SURRENDER
     </button>
