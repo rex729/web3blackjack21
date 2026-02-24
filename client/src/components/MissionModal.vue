@@ -18,6 +18,7 @@ const handleClose = () => {
 };
 
 const handleClaim = async (missionId: string) => {
+    handleClose();
     await missionStore.claimMission(missionId);
 };
 
