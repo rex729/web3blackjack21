@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Web3Blackjack21
 
-## Getting Started
+Web3Blackjack21 is a modern, full-stack Blackjack game featuring a clean UI and a robust cloud-native backend architecture.
 
-First, run the development server:
+## 🚀 Tech Stack
+
+- **Frontend:** Vue 3 (Composition API), Pinia (State Management), Tailwind CSS
+- **Backend:** Node.js, Express, TypeScript
+- **Database:** SQLite with Prisma ORM
+- **Infrastructure & DevOps:** Containerized via Docker and orchestrated on **AWS EKS (Kubernetes)** using custom K8s Manifests and Ingress controllers.
+
+## 🌟 Key Features
+
+- **Fluid Gameplay:** Smooth dealing and shuffling animations powered by Vue 3 and CSS Transitions.
+- **Data Persistence:** Integrated user authentication and dynamic real-time balance tracking utilizing Prisma.
+- **Enterprise-Grade DevOps:** Moving beyond simple PaaS (like Vercel), this project leverages Infrastructure-as-Code (shell scripts + YAML) to spin up and manage a full Kubernetes cluster on AWS.
+
+## 🛠 Project Structure
+
+- `/client` - The Vue 3 frontend application.
+- `/backend` - The Node.js / Express API service.
+- `/eks` - The Kubernetes configuration files and deployment scripts.
+
+## 🖥 Getting Started (Local Development)
+
+You can spin up the environment quickly or run it locally by checking `process.md`. 
+To deploy the whole architecture into the cloud, you can utilize the provided EKS scripts:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd eks
+bash 1_create_cluster.sh
+bash 3_deploy_apps.sh
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 📝 Next Steps
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Move core Blackjack shuffling and verification logic entirely to the backend to prevent client-side cheating.
+- Native Web3 Wallet (MetaMask) integration.
