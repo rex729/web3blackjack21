@@ -22,7 +22,10 @@ spec:
         - name: PORT
           value: "4000"
         - name: JWT_SECRET
-          value: "mock-jwt-secret-for-local-dev-only" # 生產環境請改用 K8s Secrets
+          valueFrom:
+            secretKeyRef:
+              name: blackjack-jwt-secret
+              key: JWT_SECRET
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:

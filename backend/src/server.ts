@@ -10,13 +10,13 @@ import { GameService } from "./services/gameService";
 import { MissionService } from "./services/missionService";
 import { LEVEL_RULES } from "./config/rules";
 import { calculateLevel } from "./utils/levelSystem";
+import { JWT_SECRET } from "./config/jwt";
 import rewardRoutes from "./routes/rewardRoutes";
 import missionRoutes from "./routes/missionRoutes";
 
 dotenv.config();
 
 const GOOGLE_CLIENT_ID = "35708177818-vt66utfbrr6ivjtjch3nnk31aihfk1e0.apps.googleusercontent.com";
-const JWT_SECRET = "mock-jwt-secret-for-local-dev-only"; // 生產環境請移至 .env
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 const CLEANUP_TIMEOUT = 10000; // 斷線後保留遊戲的緩衝時間 (毫秒)
 

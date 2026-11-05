@@ -1,9 +1,9 @@
 import express, { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '../config/jwt';
 import { MissionService } from '../services/missionService';
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "mock-jwt-secret-for-local-dev-only";
 
 // Middleware to ensure user is authenticated
 const requireAuth = (req: any, res: any, next: any) => {
